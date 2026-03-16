@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketplace Pairing</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header class="header">
+        <img class="logo" src="icon.png" alt="Extension icon">
+        <div>
+          <h1>Extension Pairing</h1>
+          <p class="subtitle">Connect this browser to your mobile app.</p>
+        </div>
+      </header>
+
+      <section class="card">
+        <p id="statusText" class="status">Not connected.</p>
+        <p id="countdownText" class="countdown hidden"></p>
+        <div id="qrWrapper" class="qr-wrapper hidden">
+          <div id="qrCode"></div>
+        </div>
+        <section id="listingSection" class="listing hidden">
+          <div class="listing-header">
+            <h2 class="listing-title">Latest Listing</h2>
+            <div class="listing-toolbar">
+              <button id="fillOlxButton" class="button secondary compact hidden">Fill OLX</button>
+              <button id="refreshListingButton" class="button secondary compact hidden">Refresh</button>
+            </div>
+          </div>
+          <p id="listingEmptyText" class="listing-empty">No listing received yet.</p>
+          <div id="listingContent" class="hidden">
+            <p id="listingTitle" class="listing-name"></p>
+            <p id="listingPrice" class="listing-meta"></p>
+            <p id="listingCategory" class="listing-meta"></p>
+            <p id="listingLocation" class="listing-meta"></p>
+            <p id="listingDescription" class="listing-description"></p>
+            <p id="listingImages" class="listing-meta"></p>
+          </div>
+        </section>
+        <p id="errorText" class="error hidden"></p>
+        <div class="actions">
+          <button id="generateButton" class="button primary">Generate QR</button>
+          <button id="disconnectButton" class="button danger hidden">Disconnect</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./node_modules/qrcodejs/qrcode.min.js"></script>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

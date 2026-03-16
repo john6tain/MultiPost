@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Multi-Post",
+    "slug": "multi-post-mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scan QR codes to pair your desktop extension and attach listing photos.",
+        "NSPhotoLibraryUsageDescription": "Select listing photos from your library.",
+        "NSPhotoLibraryAddUsageDescription": "Save photos taken for listings.",
+        "NSMicrophoneUsageDescription": "Not used"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-image-picker",
+      "expo-asset"
+    ]
+  }
+}

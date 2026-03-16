@@ -1,0 +1,10 @@
+{
+  "name": "multi-post-extension",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Chrome extension popup pairing flow",
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "qrcodejs": "^1.0.0"
+  }
+}

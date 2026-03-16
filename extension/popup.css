@@ -1,0 +1,174 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.popup {
+  width: 340px;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.card {
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.status,
+.countdown,
+.error {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.countdown {
+  color: #2563eb;
+}
+
+.error {
+  color: #dc2626;
+}
+
+.qr-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+#qrCode {
+  width: 220px;
+  height: 220px;
+}
+
+#qrCode img,
+#qrCode canvas {
+  display: block;
+  width: 220px;
+  height: 220px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.listing {
+  margin-bottom: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.listing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.listing-toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.listing-title,
+.listing-name {
+  margin: 0;
+}
+
+.listing-title {
+  font-size: 15px;
+}
+
+.listing-name {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.listing-meta,
+.listing-description,
+.listing-empty {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.listing-description {
+  color: #111827;
+  white-space: pre-wrap;
+}
+
+.button {
+  flex: 1;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button.primary {
+  background: #111827;
+  color: #ffffff;
+}
+
+.button.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.button.compact {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.hidden {
+  display: none;
+}
