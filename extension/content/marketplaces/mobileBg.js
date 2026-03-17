@@ -1,6 +1,18 @@
 (function registerMobileBgMarketplaceAdapter() {
   const { registerMarketplaceAdapter, helpers } = globalThis.MultiPostContent;
 
+  const VEHICLE_CATEGORY_CONFIG = {
+    cars: { topmenu: "1", priceField: "f12", descriptionField: "f21" },
+    buses: { topmenu: "3", priceField: "f15", descriptionField: "f24" },
+    trucks: { topmenu: "4", priceField: "f15", descriptionField: "f24" },
+    motorcycles: { topmenu: "5", priceField: "f15", descriptionField: "f24" },
+    forklifts: { topmenu: "8", priceField: "f11", descriptionField: "f20" },
+    boats: { topmenu: "10", priceField: "f16", descriptionField: "f24" },
+    trailers: { topmenu: "11", priceField: "f10", descriptionField: "f18" },
+    bicycles: { topmenu: "12", priceField: "f12", descriptionField: "f17" },
+    parts: { topmenu: "1", rub: "5", titleField: "f24", priceField: "f12", descriptionField: "f17" }
+  };
+
   const SELECTORS = {
     title: [
       'input[name="title"]',
@@ -59,6 +71,94 @@
     }
   };
 
+  function queryByName(fieldName) {
+    return document.querySelector(`select[name="${fieldName}"], input[name="${fieldName}"], textarea[name="${fieldName}"]`);
+  }
+
+  function dispatchFieldEvents(element) {
+    if (!element) {
+      return;
+    }
+
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  async function fillVehicleCategory(listing, categoryKey) {
+    const mobileBgData = listing.marketplaceData?.mobileBg;
+    const categoryConfig = VEHICLE_CATEGORY_CONFIG[categoryKey];
+    const fields = mobileBgData?.fields ?? {};
+    const selectedFeatures = new Set(mobileBgData?.features ?? []);
+
+    const topmenu = document.querySelector('input[name="topmenu"]')?.value;
+    if (topmenu !== categoryConfig.topmenu) {
+      return {
+        ok: false,
+        consumedImages: false,
+        message: "Open the matching mobile.bg primary category step before filling this listing."
+      };
+    }
+
+    if (categoryConfig.rub) {
+      const rub = document.querySelector('input[name="rub"]')?.value;
+      if (rub !== categoryConfig.rub) {
+        return {
+          ok: false,
+          consumedImages: false,
+          message: "Open the matching mobile.bg category form before filling this listing."
+        };
+      }
+    }
+
+    const brandField = queryByName("f5");
+    if (brandField && fields.f5) {
+      helpers.setSelectValue(brandField, fields.f5, { dispatchEvents: true });
+      await helpers.wait(250);
+    }
+
+    Object.entries(fields).forEach(([fieldName, fieldValue]) => {
+      if (!fieldValue || fieldName === "f5") {
+        return;
+      }
+
+      const element = queryByName(fieldName);
+      if (!element) {
+        return;
+      }
+
+      if (element.tagName === "SELECT") {
+        helpers.setSelectValue(element, fieldValue);
+        return;
+      }
+
+      helpers.setFieldValue(element, fieldValue);
+    });
+
+    helpers.setFieldValue(
+      queryByName(categoryConfig.priceField),
+      listing.price != null ? String(listing.price) : ""
+    );
+    if (categoryConfig.titleField) {
+      helpers.setFieldValue(queryByName(categoryConfig.titleField), listing.title || "");
+    }
+    helpers.setFieldValue(
+      queryByName(categoryConfig.descriptionField),
+      listing.description || ""
+    );
+
+    document.querySelectorAll('input[type="checkbox"][name^="f"]').forEach((checkbox) => {
+      const shouldCheck = selectedFeatures.has(checkbox.name);
+      checkbox.checked = shouldCheck;
+      dispatchFieldEvents(checkbox);
+    });
+
+    return {
+      ok: true,
+      consumedImages: false,
+      message: "Filled the mobile.bg category step. Open the photos step to attach images."
+    };
+  }
+
   function fillTiresRimsCategory(listing) {
     const tiresRimsData = listing.marketplaceData?.mobileBg?.tiresRims;
 
@@ -66,106 +166,31 @@
       return;
     }
 
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.adType),
-      tiresRimsData.adType
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.vatStatus),
-      tiresRimsData.vatStatus
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.currency),
-      tiresRimsData.currency
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.condition),
-      tiresRimsData.condition
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.tireBrand),
-      tiresRimsData.tireBrand
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.tireWidthMm),
-      tiresRimsData.tireWidthMm
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.tireHeight),
-      tiresRimsData.tireHeight
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.rimDiameterInch),
-      tiresRimsData.rimDiameterInch
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.season),
-      tiresRimsData.season
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.speedIndex),
-      tiresRimsData.speedIndex
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.loadIndex),
-      tiresRimsData.loadIndex
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.treadPattern),
-      tiresRimsData.treadPattern
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.carMake),
-      tiresRimsData.carMake
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.carModel),
-      tiresRimsData.carModel
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.rimBrand),
-      tiresRimsData.rimBrand
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.rimWidthInch),
-      tiresRimsData.rimWidthInch
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.rimMaterial),
-      tiresRimsData.rimMaterial
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.rimOffsetEtMm),
-      tiresRimsData.rimOffsetEtMm
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.boltsCount),
-      tiresRimsData.boltsCount
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.boltSpacing),
-      tiresRimsData.boltSpacing
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.centerHole),
-      tiresRimsData.centerHole
-    );
-    helpers.setFieldValue(
-      helpers.queryFirst(SELECTORS.tiresRims.quantity),
-      tiresRimsData.quantity || ""
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.region),
-      tiresRimsData.region
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.city),
-      tiresRimsData.city
-    );
-    helpers.setSelectValue(
-      helpers.queryFirst(SELECTORS.tiresRims.rimType),
-      tiresRimsData.rimType
-    );
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.adType), tiresRimsData.adType);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.vatStatus), tiresRimsData.vatStatus);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.currency), tiresRimsData.currency);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.condition), tiresRimsData.condition);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.tireBrand), tiresRimsData.tireBrand);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.tireWidthMm), tiresRimsData.tireWidthMm);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.tireHeight), tiresRimsData.tireHeight);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.rimDiameterInch), tiresRimsData.rimDiameterInch);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.season), tiresRimsData.season);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.speedIndex), tiresRimsData.speedIndex);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.loadIndex), tiresRimsData.loadIndex);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.treadPattern), tiresRimsData.treadPattern);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.carMake), tiresRimsData.carMake, { dispatchEvents: true });
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.carModel), tiresRimsData.carModel);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.rimBrand), tiresRimsData.rimBrand);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.rimWidthInch), tiresRimsData.rimWidthInch);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.rimMaterial), tiresRimsData.rimMaterial);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.rimOffsetEtMm), tiresRimsData.rimOffsetEtMm);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.boltsCount), tiresRimsData.boltsCount);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.boltSpacing), tiresRimsData.boltSpacing);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.centerHole), tiresRimsData.centerHole);
+    helpers.setFieldValue(helpers.queryFirst(SELECTORS.tiresRims.quantity), tiresRimsData.quantity || "");
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.region), tiresRimsData.region);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.city), tiresRimsData.city);
+    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.rimType), tiresRimsData.rimType);
   }
 
   function isTiresRimsStep() {
@@ -173,7 +198,6 @@
       document.querySelector('input[name="pubact"][value="2"]')
       || document.querySelector('input[name="rub"][value="7"]')
       || document.querySelector('textarea[name="f36"]')
-      || document.querySelector('select[name="f5"]')
       || document.querySelector('select[name="f33"]')
       || document.querySelector('select[name="f34"]')
     );
@@ -199,6 +223,8 @@
     },
     async fill(listing, context = {}) {
       const { imagesOnly = false } = context;
+      const mobileBgData = listing.marketplaceData?.mobileBg;
+      const categoryKey = mobileBgData?.primaryCategoryKey;
 
       if (imagesOnly) {
         if (!isPhotosStep()) {
@@ -209,10 +235,7 @@
           };
         }
 
-        const imagesAttached = await helpers.attachListingImages(
-          SELECTORS.imageInput,
-          listing.images
-        );
+        const imagesAttached = await helpers.attachListingImages(SELECTORS.imageInput, listing.images);
 
         if (!imagesAttached) {
           return {
@@ -228,6 +251,10 @@
         };
       }
 
+      if (categoryKey && VEHICLE_CATEGORY_CONFIG[categoryKey]) {
+        return fillVehicleCategory(listing, categoryKey);
+      }
+
       if (isTiresRimsStep()) {
         fillTiresRimsCategory(listing);
 
@@ -235,10 +262,7 @@
           helpers.queryFirst(SELECTORS.tiresRims.price),
           listing.price != null ? String(listing.price) : ""
         );
-        helpers.setFieldValue(
-          helpers.queryFirst(SELECTORS.tiresRims.description),
-          listing.description || ""
-        );
+        helpers.setFieldValue(helpers.queryFirst(SELECTORS.tiresRims.description), listing.description || "");
 
         if (!priceFilled) {
           return {
@@ -252,40 +276,32 @@
           consumedImages: false,
           message: "Filled the mobile.bg tires/rims step. Open the photos step to attach images."
         };
-      } else if (isPhotosStep()) {
+      }
+
+      if (isPhotosStep()) {
         return {
           ok: false,
           consumedImages: false,
           message: "Use Upload Images on the mobile.bg photos step."
         };
-      } else {
-        const titleFilled = helpers.setFieldValue(
-          helpers.queryFirst(SELECTORS.title),
-          listing.title || ""
-        );
+      }
 
-        if (!titleFilled) {
-          return {
-            ok: false,
-            message: "Could not find the mobile.bg title field. Update the selector map for the current mobile.bg form."
-          };
-        }
-
-        helpers.setFieldValue(
-          helpers.queryFirst(SELECTORS.description),
-          listing.description || ""
-        );
-        helpers.setFieldValue(
-          helpers.queryFirst(SELECTORS.price),
-          listing.price != null ? String(listing.price) : ""
-        );
-
+      const titleFilled = helpers.setFieldValue(helpers.queryFirst(SELECTORS.title), listing.title || "");
+      if (!titleFilled) {
         return {
-          ok: true,
-          consumedImages: false,
-          message: "Filled the current mobile.bg details step."
+          ok: false,
+          message: "Could not find the mobile.bg title field. Update the selector map for the current mobile.bg form."
         };
       }
+
+      helpers.setFieldValue(helpers.queryFirst(SELECTORS.description), listing.description || "");
+      helpers.setFieldValue(helpers.queryFirst(SELECTORS.price), listing.price != null ? String(listing.price) : "");
+
+      return {
+        ok: true,
+        consumedImages: false,
+        message: "Filled the current mobile.bg details step."
+      };
     }
   });
 })();

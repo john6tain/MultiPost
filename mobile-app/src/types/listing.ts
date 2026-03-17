@@ -6,6 +6,18 @@ export type ListingImage = {
 
 export type PostingTargetId = "olx" | "mobile-bg";
 
+export type MobileBgPrimaryCategoryKey =
+  | "cars"
+  | "buses"
+  | "trucks"
+  | "motorcycles"
+  | "forklifts"
+  | "boats"
+  | "trailers"
+  | "bicycles"
+  | "parts"
+  | "tires-rims";
+
 export type MobileBgTiresRimsData = {
   categoryKey?: "tires-rims";
   adType?: string;
@@ -37,6 +49,9 @@ export type MobileBgTiresRimsData = {
 
 export type MarketplaceData = {
   mobileBg?: {
+    primaryCategoryKey?: MobileBgPrimaryCategoryKey;
+    fields?: Record<string, string>;
+    features?: string[];
     tiresRims?: MobileBgTiresRimsData;
   };
 };

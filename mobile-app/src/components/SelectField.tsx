@@ -88,7 +88,7 @@ export default function SelectField({
                   <Pressable
                     key={`${option.value}-${option.label}`}
                     onPress={() => {
-                      onChangeValue(option.label);
+                      onChangeValue(option.value);
                       close();
                     }}
                     style={[styles.option, isSelected && styles.optionSelected]}
