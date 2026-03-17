@@ -11,18 +11,21 @@
     "http://localhost:3000/*",
     "https://www.olx.bg/*",
     "https://www.mobile.bg/*",
+    "https://bazar.bg/*",
     "https://www.facebook.com/marketplace/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://www.olx.bg/*",
-        "https://www.mobile.bg/*"
+        "https://www.mobile.bg/*",
+        "https://bazar.bg/*"
       ],
       "js": [
         "content/common.js",
         "content/marketplaces/olx.js",
         "content/marketplaces/mobileBg.js",
+        "content/marketplaces/bazarBg.js",
         "content.js"
       ]
     }

@@ -33,9 +33,22 @@ import {
   MobileBgCategorySchema,
   MobileBgFieldDefinition
 } from "../data/mobileBgSchema";
+import {
+  BAZAR_BG_SCHEMA_OPTIONS,
+  BAZAR_BG_SCHEMAS,
+  BAZAR_BG_SUBCATEGORIES_BY_TOP_LEVEL,
+  BAZAR_BG_THIRD_LEVEL_BY_SUBCATEGORY,
+  BAZAR_BG_TOP_LEVEL_CATEGORY_OPTIONS,
+  BazarBgFieldDefinition,
+  BazarBgSchema,
+  getBazarBgSubcategoryLabel,
+  getBazarBgThirdLevelLabel,
+  getBazarBgTopLevelLabel
+} from "../data/bazarBgSchema";
 import { useAppState } from "../hooks/useAppState";
 import { RootStackParamList } from "../types/navigation";
 import {
+  BazarBgSchemaKey,
   ListingDraft,
   MobileBgPrimaryCategoryKey,
   MobileBgTiresRimsData,
@@ -47,7 +60,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "CreateListing">;
 
 const POSTING_TARGETS: Array<{ id: PostingTargetId; label: string }> = [
   { id: "olx", label: "OLX" },
-  { id: "mobile-bg", label: "mobile.bg" }
+  { id: "mobile-bg", label: "mobile.bg" },
+  { id: "bazar-bg", label: "bazar.bg" }
 ];
 
 export default function CreateListingScreen({ navigation }: Props) {
@@ -85,6 +99,86 @@ export default function CreateListingScreen({ navigation }: Props) {
           ...current.marketplaceData?.mobileBg,
           fields: {
             ...current.marketplaceData?.mobileBg?.fields,
+            [name]: value
+          }
+        }
+      }
+    }));
+  }
+
+  function updateBazarBgSchema(value: string) {
+    const schemaKey = value as BazarBgSchemaKey;
+
+    setDraft((current) => ({
+      ...current,
+      marketplaceData: {
+        ...current.marketplaceData,
+        bazarBg: {
+          ...current.marketplaceData?.bazarBg,
+          schemaKey,
+          fields: {}
+        }
+      }
+    }));
+  }
+
+  function updateBazarBgTopLevelCategory(value: string) {
+    setDraft((current) => ({
+      ...current,
+      marketplaceData: {
+        ...current.marketplaceData,
+        bazarBg: {
+          ...current.marketplaceData?.bazarBg,
+          topLevelCategoryId: value,
+          topLevelCategory: getBazarBgTopLevelLabel(value),
+          subcategoryId: "",
+          subcategory: "",
+          leafCategoryId: "",
+          leafCategory: ""
+        }
+      }
+    }));
+  }
+
+  function updateBazarBgSubcategory(value: string) {
+    setDraft((current) => ({
+      ...current,
+      marketplaceData: {
+        ...current.marketplaceData,
+        bazarBg: {
+          ...current.marketplaceData?.bazarBg,
+          subcategoryId: value,
+          subcategory: getBazarBgSubcategoryLabel(current.marketplaceData?.bazarBg?.topLevelCategoryId ?? "", value),
+          leafCategoryId: "",
+          leafCategory: ""
+        }
+      }
+    }));
+  }
+
+  function updateBazarBgLeafCategory(value: string) {
+    setDraft((current) => ({
+      ...current,
+      marketplaceData: {
+        ...current.marketplaceData,
+        bazarBg: {
+          ...current.marketplaceData?.bazarBg,
+          leafCategoryId: value,
+          leafCategory: getBazarBgThirdLevelLabel(current.marketplaceData?.bazarBg?.subcategoryId ?? "", value)
+        }
+      }
+    }));
+  }
+
+  function updateBazarBgField(name: string, value: string) {
+    setDraft((current) => ({
+      ...current,
+      marketplaceData: {
+        ...current.marketplaceData,
+        bazarBg: {
+          ...current.marketplaceData?.bazarBg,
+          fields: {
+            ...current.marketplaceData?.bazarBg?.fields,
             [name]: value
           }
         }
@@ -149,6 +243,7 @@ export default function CreateListingScreen({ navigation }: Props) {
   const mobileBgFields = mobileBgData?.fields ?? {};
   const mobileBgFeatures = mobileBgData?.features ?? [];
   const showMobileBg = draft.postingTargets.includes("mobile-bg");
+  const showBazarBg = draft.postingTargets.includes("bazar-bg");
   const selectedPrimaryCategory = mobileBgData?.primaryCategoryKey;
   const selectedSchema = useMemo<MobileBgCategorySchema | null>(() => {
     if (!selectedPrimaryCategory || selectedPrimaryCategory === "tires-rims") {
@@ -157,6 +252,31 @@ export default function CreateListingScreen({ navigation }: Props) {
 
     return MOBILE_BG_CATEGORY_SCHEMAS[selectedPrimaryCategory] ?? null;
   }, [selectedPrimaryCategory]);
+  const bazarBgData = draft.marketplaceData?.bazarBg;
+  const bazarBgFields = bazarBgData?.fields ?? {};
+  const bazarBgSelectedSchema = useMemo<BazarBgSchema | null>(() => {
+    const schemaKey = bazarBgData?.schemaKey;
+
+    if (!schemaKey) {
+      return null;
+    }
+
+    return BAZAR_BG_SCHEMAS[schemaKey] ?? null;
+  }, [bazarBgData?.schemaKey]);
+  const bazarBgSubcategoryOptions = useMemo(() => {
+    const topLevelCategoryId = bazarBgData?.topLevelCategoryId ?? "";
+    return (BAZAR_BG_SUBCATEGORIES_BY_TOP_LEVEL[topLevelCategoryId] ?? []).map((item) => ({
+      label: item.label,
+      value: item.id
+    }));
+  }, [bazarBgData?.topLevelCategoryId]);
+  const bazarBgLeafCategoryOptions = useMemo(() => {
+    const subcategoryId = bazarBgData?.subcategoryId ?? "";
+    return (BAZAR_BG_THIRD_LEVEL_BY_SUBCATEGORY[subcategoryId] ?? []).map((item) => ({
+      label: item.label,
+      value: item.id
+    }));
+  }, [bazarBgData?.subcategoryId]);
 
   async function pickImages(fromCamera: boolean) {
     const permission = fromCamera
@@ -332,12 +452,95 @@ export default function CreateListingScreen({ navigation }: Props) {
         </View>
       ) : null}
 
+      {showBazarBg ? (
+        <View style={styles.marketplaceSection}>
+          <Text style={styles.sectionTitle}>bazar.bg</Text>
+          <Text style={styles.sectionHint}>This is a first-pass schema-driven setup from the research pack. The category tree and field groups are captured, while exact live-form selectors will be resolved later.</Text>
+
+          <SelectField
+            label="Top-level category"
+            value={bazarBgData?.topLevelCategoryId ?? ""}
+            options={BAZAR_BG_TOP_LEVEL_CATEGORY_OPTIONS}
+            onChangeValue={updateBazarBgTopLevelCategory}
+            placeholder="Select top-level category"
+          />
+
+          <SelectField
+            label="Subcategory"
+            value={bazarBgData?.subcategoryId ?? ""}
+            options={bazarBgSubcategoryOptions}
+            onChangeValue={updateBazarBgSubcategory}
+            placeholder={bazarBgSubcategoryOptions.length ? "Select subcategory" : "No subcategories loaded"}
+          />
+
+          {bazarBgLeafCategoryOptions.length ? (
+            <SelectField
+              label="Leaf category"
+              value={bazarBgData?.leafCategoryId ?? ""}
+              options={bazarBgLeafCategoryOptions}
+              onChangeValue={updateBazarBgLeafCategory}
+              placeholder="Select leaf category"
+            />
+          ) : null}
+
+          <SelectField
+            label="Schema group"
+            value={bazarBgData?.schemaKey ?? ""}
+            options={BAZAR_BG_SCHEMA_OPTIONS}
+            onChangeValue={updateBazarBgSchema}
+            placeholder="Select schema group"
+          />
+
+          {bazarBgSelectedSchema ? (
+            <>
+              {bazarBgSelectedSchema.fieldGroups.map((group) => (
+                <View key={group.title} style={styles.group}>
+                  <Text style={styles.groupTitle}>{group.title}</Text>
+                  {group.fields.map((field) => renderBazarBgField(field, bazarBgFields[field.name] ?? "", updateBazarBgField))}
+                </View>
+              ))}
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
       <PhotoPickerField images={draft.images} onPickFromLibrary={() => pickImages(false)} onTakePhoto={() => pickImages(true)} />
 
       <View style={styles.actions}>
         <PrimaryButton title={isSaving ? "Saving..." : "Save Listing"} onPress={handleSave} disabled={isSaving} />
       </View>
     </ScrollView>
+  );
+}
+
+function renderBazarBgField(
+  field: BazarBgFieldDefinition,
+  value: string,
+  onChange: (name: string, value: string) => void
+) {
+  if (field.type === "select" && field.options) {
+    return (
+      <SelectField
+        key={field.name}
+        label={`${field.label}${field.required ? " *" : ""}`}
+        value={value}
+        options={field.options}
+        onChangeValue={(nextValue) => onChange(field.name, nextValue)}
+        placeholder={field.placeholder ?? "Select"}
+      />
+    );
+  }
+
+  return (
+    <Field
+      key={field.name}
+      label={`${field.label}${field.required ? " *" : ""}`}
+      value={value}
+      onChangeText={(nextValue) => onChange(field.name, nextValue)}
+      keyboardType={field.type === "number" ? "numeric" : "default"}
+      multiline={field.type === "textarea"}
+      placeholder={field.placeholder}
+    />
   );
 }
 

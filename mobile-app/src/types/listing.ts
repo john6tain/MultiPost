@@ -4,7 +4,13 @@ export type ListingImage = {
   mimeType?: string | null;
 };
 
-export type PostingTargetId = "olx" | "mobile-bg";
+export type PostingTargetId = "olx" | "mobile-bg" | "bazar-bg";
+
+export type BazarBgSchemaKey =
+  | "generic_goods"
+  | "auto_accessories"
+  | "real_estate"
+  | "jobs_services";
 
 export type MobileBgPrimaryCategoryKey =
   | "cars"
@@ -53,6 +59,16 @@ export type MarketplaceData = {
     fields?: Record<string, string>;
     features?: string[];
     tiresRims?: MobileBgTiresRimsData;
+  };
+  bazarBg?: {
+    schemaKey?: BazarBgSchemaKey;
+    topLevelCategory?: string;
+    topLevelCategoryId?: string;
+    subcategory?: string;
+    subcategoryId?: string;
+    leafCategory?: string;
+    leafCategoryId?: string;
+    fields?: Record<string, string>;
   };
 };
 

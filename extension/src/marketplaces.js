@@ -19,6 +19,13 @@ export const MARKETPLACES = [
     origin: "https://www.mobile.bg",
     pathPrefix: "/",
     supportsAutofill: true
+  },
+  {
+    id: "bazar-bg",
+    label: "bazar.bg",
+    origin: "https://bazar.bg",
+    pathPrefix: "/",
+    supportsAutofill: true
   }
 ];
 
