@@ -16,7 +16,9 @@ export default function ListingPreviewScreen() {
     price: Number(listingDraft.price) || 0,
     category: listingDraft.category.trim(),
     location: listingDraft.location.trim(),
-    images: listingDraft.images.map((image) => image.uri)
+    images: listingDraft.images.map((image) => image.uri),
+    postingTargets: listingDraft.postingTargets,
+    marketplaceData: listingDraft.marketplaceData ?? {}
   }), [listingDraft]);
 
   async function handleSend() {
@@ -51,6 +53,11 @@ export default function ListingPreviewScreen() {
         <Text style={styles.price}>{listingPayload.price ? `${listingPayload.price} lv` : "No price"}</Text>
         <Text style={styles.meta}>{listingPayload.category || "No category"}</Text>
         <Text style={styles.meta}>{listingPayload.location || "No location"}</Text>
+        <Text style={styles.meta}>
+          {listingPayload.postingTargets.length
+            ? `Targets: ${listingPayload.postingTargets.join(", ")}`
+            : "Targets: not set"}
+        </Text>
         <Text style={styles.description}>{listingPayload.description || "No description"}</Text>
       </View>
 

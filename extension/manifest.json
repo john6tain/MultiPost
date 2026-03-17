@@ -9,20 +9,27 @@
   ],
   "host_permissions": [
     "http://localhost:3000/*",
-    "https://www.olx.bg/*"
+    "https://www.olx.bg/*",
+    "https://www.mobile.bg/*",
+    "https://www.facebook.com/marketplace/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "https://www.olx.bg/*"
+        "https://www.olx.bg/*",
+        "https://www.mobile.bg/*"
       ],
       "js": [
+        "content/common.js",
+        "content/marketplaces/olx.js",
+        "content/marketplaces/mobileBg.js",
         "content.js"
       ]
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_title": "Marketplace Pairing",

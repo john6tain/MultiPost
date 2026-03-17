@@ -6,12 +6,12 @@ This file is a quick handoff for continuing work on Multi-Post later without re-
 
 ```text
 MultiPost/
-├─ backend/
-├─ extension/
-├─ mobile-app/
-├─ README.md
-├─ PROJECT_CONTEXT.md
-└─ .gitignore
+|- backend/
+|- extension/
+|- mobile-app/
+|- README.md
+|- PROJECT_CONTEXT.md
+`- .gitignore
 ```
 
 ## What The Project Does
@@ -21,7 +21,7 @@ Multi-Post lets a user:
 1. pair a mobile app with a Chrome extension using a QR code
 2. create a listing on mobile
 3. send that listing to the desktop session through the backend
-4. autofill the OLX listing form from the extension
+4. autofill supported marketplace listing forms from the extension
 
 ## Current Working Flow
 
@@ -32,8 +32,8 @@ Multi-Post lets a user:
 5. Mobile app uploads selected photos to backend.
 6. Mobile app sends listing data plus backend image paths to backend.
 7. Extension popup fetches the latest listing.
-8. User clicks `Fill OLX`.
-9. Extension fills title, description, price, and images on OLX.
+8. User clicks `Fill Form`.
+9. Extension fills the active marketplace form through a site adapter.
 10. Extension calls backend to delete temp uploaded images after successful fill.
 
 ## Important Runtime Assumptions
@@ -57,8 +57,10 @@ Multi-Post lets a user:
 
 - Uses Manifest V3.
 - Popup handles pairing and listing preview.
-- Background script only handles `on/off` badge state.
-- Content script only targets OLX right now.
+- Background script handles supported-site badge state.
+- Content script routes through marketplace adapters.
+- Implemented adapters: `OLX`, `mobile.bg`.
+- `mobile.bg` currently includes category-aware support for `Гуми и джанти` field names.
 
 ## Important Files
 
@@ -73,6 +75,9 @@ Multi-Post lets a user:
 - [background.js](C:\Users\John\Documents\js\MultiPost\extension\background.js)
 - [popup.js](C:\Users\John\Documents\js\MultiPost\extension\popup.js)
 - [content.js](C:\Users\John\Documents\js\MultiPost\extension\content.js)
+- [src/marketplaces.js](C:\Users\John\Documents\js\MultiPost\extension\src\marketplaces.js)
+- [content/marketplaces/olx.js](C:\Users\John\Documents\js\MultiPost\extension\content\marketplaces\olx.js)
+- [content/marketplaces/mobileBg.js](C:\Users\John\Documents\js\MultiPost\extension\content\marketplaces\mobileBg.js)
 - [src/api.js](C:\Users\John\Documents\js\MultiPost\extension\src\api.js)
 
 ### Mobile App
@@ -85,16 +90,19 @@ Multi-Post lets a user:
 - [QRScannerScreen.tsx](C:\Users\John\Documents\js\MultiPost\mobile-app\src\screens\QRScannerScreen.tsx)
 - [api.ts](C:\Users\John\Documents\js\MultiPost\mobile-app\src\services\api.ts)
 
-## Current OLX Selectors
+## Current Marketplace Selectors
 
-- Title:
+- OLX title:
   - `input[name="title"]`
-- Description:
+- OLX description:
   - `textarea[name="description"]`
-- Price:
+- OLX price:
   - `input[name="parameters.price.price"]`
-- Image input:
+- OLX image input:
   - `input[data-testid="attach-photos-input"]`
+- mobile.bg:
+  - adapter supports `Гуми и джанти` form field names like `f5`, `f6`, `f7`, `f8`, `f12`, `f13`, `f14`, `f15`, `f18`, `f19`, `f20`
+  - image/title/description selectors may still need live-form refinement on other categories
 
 ## Current UX Notes
 
@@ -112,7 +120,7 @@ Multi-Post lets a user:
 - Popup has:
   - `Generate QR`
   - `Refresh`
-  - `Fill OLX`
+  - `Fill Form`
   - `Disconnect`
 - Badge still shows `on/off` based on supported site.
 
@@ -120,19 +128,21 @@ Multi-Post lets a user:
 
 - Backend has no database.
 - Pairing is not authenticated beyond token exchange.
-- OLX category/location/image ordering refinements are not implemented.
+- Marketplace-specific category/location/image ordering refinements are not implemented.
+- `mobile.bg` selectors are a first-pass scaffold and may need refinement against the live form.
 - Extension cleanup removes backend temp images after successful fill, but failed fills may still leave files behind.
 - Popup listing data can become stale if backend restarts.
 
 ## Good Next Steps
 
-1. Add OLX category fill.
-2. Add OLX location fill.
-3. Add image upload retry/wait logic if OLX is slow.
-4. Add backend cleanup job for orphaned uploads.
-5. Persist pairings/listings in a database.
-6. Add support for Facebook Marketplace and mobile.bg forms.
-7. Add better listing state in extension after successful fill.
+1. Add category fill on OLX.
+2. Add location fill on OLX.
+3. Refine `mobile.bg` selectors against the live form.
+4. Add image upload retry/wait logic if marketplace upload is slow.
+5. Add backend cleanup job for orphaned uploads.
+6. Persist pairings/listings in a database.
+7. Add Facebook Marketplace form filling.
+8. Add better listing state in extension after successful fill.
 
 ## Local Start Commands
 
@@ -170,6 +180,7 @@ Before debugging anything:
 3. reload the unpacked extension
 4. resend the listing from mobile if the extension shows stale image paths
 5. verify whether listing images are backend paths like `/uploads/...` and not `file:///...`
+6. verify the active site has a mapped marketplace adapter
 
 ## Primary Documentation
 

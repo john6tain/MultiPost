@@ -29,7 +29,7 @@ Chrome Manifest V3 extension that:
 - generates a QR pairing token
 - stores pairing state locally
 - fetches the latest listing from the backend
-- fills OLX title, description, price, and images
+- fills marketplace forms through site adapters
 
 3. `backend`
 Node backend used as the session bridge between mobile and extension:
@@ -37,7 +37,7 @@ Node backend used as the session bridge between mobile and extension:
 - confirms mobile pairing
 - stores the latest listing per paired session
 - stores uploaded images temporarily
-- deletes uploaded images after successful OLX autofill
+- deletes uploaded images after successful marketplace autofill
 
 ## Supported marketplace detection
 
@@ -49,7 +49,7 @@ The extension badge shows:
   - `https://www.mobile.bg/`
 - `off` for everything else
 
-The autofill implementation currently targets OLX.
+Autofill is implemented through marketplace adapters. `OLX` is currently the most complete mapping, and `mobile.bg` has a first adapter scaffold.
 
 ## Current Features
 
@@ -78,8 +78,8 @@ The autofill implementation currently targets OLX.
 - disconnect flow
 - listing preview inside popup
 - refresh latest listing
-- autofill OLX title, description, and price
-- upload OLX images from backend-served temp files
+- autofill supported marketplace fields
+- upload marketplace images from backend-served temp files
 - delete uploaded backend images after successful fill
 
 ### Backend
@@ -149,7 +149,7 @@ Responsibilities:
 - generate QR token
 - poll pairing status
 - fetch active listing
-- fill OLX form
+- fill marketplace forms through adapters
 
 ### `mobile-app/`
 
@@ -289,7 +289,7 @@ Body:
 }
 ```
 
-This is called by the extension after successful OLX image fill so temporary backend files do not accumulate.
+This is called by the extension after successful image fill so temporary backend files do not accumulate.
 
 ## How Pairing Works
 
@@ -311,7 +311,7 @@ This is called by the extension after successful OLX image fill so temporary bac
 4. Backend returns temporary image URLs under `/uploads/...`.
 5. Mobile app sends listing data plus those image URLs to backend.
 6. Extension popup fetches the active listing for the paired token.
-7. User opens OLX and clicks `Fill OLX`.
+7. User opens a supported marketplace form and clicks `Fill Form`.
 8. Extension content script:
    - fills title
    - waits briefly
@@ -319,7 +319,7 @@ This is called by the extension after successful OLX image fill so temporary bac
    - fills price
    - fetches backend images
    - creates browser `File` objects
-   - injects them into the OLX file input
+   - injects them into the marketplace file input
 9. Extension calls backend cleanup to delete uploaded temp images.
 
 ## Installation
@@ -401,13 +401,13 @@ The extension still uses `http://localhost:3000`, which is correct because it ru
 8. In the mobile app, create a listing with photos.
 9. Tap `Send to Desktop`.
 10. Open extension popup and confirm the listing appears.
-11. Open an OLX create-listing page.
-12. Click `Fill OLX`.
+11. Open an OLX or mobile.bg create-listing page.
+12. Click `Fill Form`.
 13. Confirm:
     - title filled
     - description filled
     - price filled
-    - images attached to OLX uploader
+    - images attached to the marketplace uploader
 
 ### Debugging checklist
 
@@ -423,9 +423,9 @@ If extension popup shows no listing:
 - click `Refresh` in popup
 - confirm the listing is tied to the currently paired token
 
-If OLX fill fails:
+If marketplace fill fails:
 
-- make sure you are on an OLX create-listing page
+- make sure you are on a supported marketplace create-listing page
 - reload the extension after content script changes
 - verify popup contains the latest listing
 
@@ -435,14 +435,16 @@ If image upload fails:
 - not mobile file paths like `file:///...`
 - confirm backend is serving uploaded files
 
-## Current OLX Mappings
+## Current Marketplace Mappings
 
-Currently mapped selectors:
-
-- title: `input[name="title"]`
-- description: `textarea[name="description"]`
-- price: `input[name="parameters.price.price"]`
-- image input: `input[data-testid="attach-photos-input"]`
+- `OLX`
+  - title: `input[name="title"]`
+  - description: `textarea[name="description"]`
+  - price: `input[name="parameters.price.price"]`
+  - image input: `input[data-testid="attach-photos-input"]`
+- `mobile.bg`
+  - basic adapter scaffold is implemented
+  - selectors may need refinement against the live form
 
 ## Current Limitations
 
@@ -450,7 +452,7 @@ Currently mapped selectors:
   - restarting backend clears active pairings and listings
 - no authentication
 - no permanent database
-- only OLX autofill is implemented
+- Facebook Marketplace autofill is not implemented yet
 - category, location, and advanced form fields are not filled yet
 - image deletion happens after successful extension-side fill only
 
@@ -458,8 +460,8 @@ Currently mapped selectors:
 
 1. Add category fill on OLX
 2. Add location fill on OLX
-3. Add Facebook Marketplace form mapping
-4. Add `mobile.bg` form mapping
+3. Refine the `mobile.bg` form mapping against the live form
+4. Add Facebook Marketplace form mapping
 5. Persist pairings and listings in a database
 6. Add authentication between mobile, extension, and backend
 7. Add listing versioning or multiple draft support

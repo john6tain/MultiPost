@@ -4,6 +4,10 @@ import {
   getActiveListing,
   getPairingStatus
 } from "./src/api.js";
+import {
+  findMarketplaceByUrl,
+  getAutofillMarketplaceNames
+} from "./src/marketplaces.js";
 import { POLLING_INTERVAL_MS } from "./src/config.js";
 import {
   clearPairedSession,
@@ -26,7 +30,8 @@ const elements = {
   listingLocation: document.getElementById("listingLocation"),
   listingDescription: document.getElementById("listingDescription"),
   listingImages: document.getElementById("listingImages"),
-  fillOlxButton: document.getElementById("fillOlxButton"),
+  fillListingButton: document.getElementById("fillListingButton"),
+  fillImagesButton: document.getElementById("fillImagesButton"),
   refreshListingButton: document.getElementById("refreshListingButton"),
   generateButton: document.getElementById("generateButton"),
   disconnectButton: document.getElementById("disconnectButton")
@@ -41,6 +46,56 @@ const state = {
   latestListing: null
 };
 
+function getFillButtonLabel(rawUrl) {
+  const marketplace = findMarketplaceByUrl(rawUrl);
+  return marketplace?.supportsAutofill ? `Fill ${marketplace.label}` : "Fill Form";
+}
+
+function canFillMarketplace(listing, marketplace) {
+  if (!marketplace?.supportsAutofill) {
+    return false;
+  }
+
+  if (!Array.isArray(listing?.postingTargets) || !listing.postingTargets.length) {
+    return true;
+  }
+
+  return listing.postingTargets.includes(marketplace.id);
+}
+
+async function getActiveTab() {
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+
+  return tab ?? null;
+}
+
+async function syncFillButtonState() {
+  const tab = await getActiveTab();
+  const marketplace = findMarketplaceByUrl(tab?.url);
+  const canAutofill = Boolean(state.latestListing && canFillMarketplace(state.latestListing, marketplace));
+  const canUploadImages = Boolean(
+    state.latestListing
+    && marketplace?.id === "mobile-bg"
+    && canFillMarketplace(state.latestListing, marketplace)
+    && Array.isArray(state.latestListing.images)
+    && state.latestListing.images.length
+  );
+
+  elements.fillListingButton.textContent = getFillButtonLabel(tab?.url);
+  elements.fillListingButton.disabled = !canAutofill;
+  elements.fillListingButton.title = canAutofill
+    ? ""
+    : `Open ${getAutofillMarketplaceNames().join(" or ")} to autofill this listing.`;
+  setHidden(elements.fillImagesButton, !state.latestListing || marketplace?.id !== "mobile-bg");
+  elements.fillImagesButton.disabled = !canUploadImages;
+  elements.fillImagesButton.title = canUploadImages
+    ? ""
+    : "Open a targeted mobile.bg page with pending images to use Upload Images.";
+}
+
 function setHidden(element, hidden) {
   element.classList.toggle("hidden", hidden);
 }
@@ -54,11 +109,12 @@ function renderListing(listing) {
   state.latestListing = listing;
   setHidden(elements.listingSection, false);
   setHidden(elements.refreshListingButton, false);
-  setHidden(elements.fillOlxButton, false);
+  setHidden(elements.fillListingButton, false);
 
   if (!listing) {
     setHidden(elements.listingEmptyText, false);
     setHidden(elements.listingContent, true);
+    syncFillButtonState();
     return;
   }
 
@@ -71,12 +127,14 @@ function renderListing(listing) {
 
   setHidden(elements.listingEmptyText, true);
   setHidden(elements.listingContent, false);
+  syncFillButtonState();
 }
 
 function hideListing() {
   state.latestListing = null;
   setHidden(elements.listingSection, true);
-  setHidden(elements.fillOlxButton, true);
+  setHidden(elements.fillListingButton, true);
+  setHidden(elements.fillImagesButton, true);
   setHidden(elements.refreshListingButton, true);
   setHidden(elements.listingEmptyText, false);
   setHidden(elements.listingContent, true);
@@ -298,34 +356,44 @@ async function handleRefreshListingClick() {
   await loadActiveListing(pairedSession.pairingToken);
 }
 
-async function handleFillOlxClick() {
+async function handleFillListingClick() {
   if (!state.latestListing) {
     setError("No listing available to fill.");
     return;
   }
 
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true
-  });
+  const tab = await getActiveTab();
+  const marketplace = findMarketplaceByUrl(tab?.url);
 
   if (!tab?.id) {
     setError("Could not find the active tab.");
     return;
   }
 
+  if (!marketplace?.supportsAutofill) {
+    setError(`Open ${getAutofillMarketplaceNames().join(" or ")} before using Fill Form.`);
+    await syncFillButtonState();
+    return;
+  }
+
+  if (!canFillMarketplace(state.latestListing, marketplace)) {
+    setError(`This listing is not targeted for ${marketplace.label}.`);
+    await syncFillButtonState();
+    return;
+  }
+
   try {
     const response = await chrome.tabs.sendMessage(tab.id, {
-      type: "fillOlxListing",
+      type: "fillListing",
       listing: state.latestListing
     });
 
     if (!response?.ok) {
-      setError(response?.message || "Could not fill the OLX page.");
+      setError(response?.message || `Could not fill the ${marketplace.label} page.`);
       return;
     }
 
-    if (Array.isArray(state.latestListing.images) && state.latestListing.images.length) {
+    if (response?.consumedImages && Array.isArray(state.latestListing.images) && state.latestListing.images.length) {
       await deleteUploadedImages(state.latestListing.images);
       state.latestListing = {
         ...state.latestListing,
@@ -334,9 +402,68 @@ async function handleFillOlxClick() {
       elements.listingImages.textContent = "Images: 0";
     }
 
-    setError("");
+    setError(response?.message || "");
   } catch {
-    setError("Open an OLX listing form page before using Fill OLX.");
+    setError(`Open a ${marketplace.label} listing form page before using Fill Form.`);
+  }
+}
+
+async function handleFillImagesClick() {
+  if (!state.latestListing) {
+    setError("No listing available to fill.");
+    return;
+  }
+
+  const tab = await getActiveTab();
+  const marketplace = findMarketplaceByUrl(tab?.url);
+
+  if (!tab?.id) {
+    setError("Could not find the active tab.");
+    return;
+  }
+
+  if (marketplace?.id !== "mobile-bg") {
+    setError("Upload Images is available only on mobile.bg.");
+    await syncFillButtonState();
+    return;
+  }
+
+  if (!canFillMarketplace(state.latestListing, marketplace)) {
+    setError("This listing is not targeted for mobile.bg.");
+    await syncFillButtonState();
+    return;
+  }
+
+  if (!Array.isArray(state.latestListing.images) || !state.latestListing.images.length) {
+    setError("No images are pending for upload.");
+    await syncFillButtonState();
+    return;
+  }
+
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      type: "fillListingImages",
+      listing: state.latestListing
+    });
+
+    if (!response?.ok) {
+      setError(response?.message || "Could not upload images on mobile.bg.");
+      return;
+    }
+
+    if (response?.consumedImages) {
+      await deleteUploadedImages(state.latestListing.images);
+      state.latestListing = {
+        ...state.latestListing,
+        images: []
+      };
+      elements.listingImages.textContent = "Images: 0";
+    }
+
+    setError(response?.message || "");
+    await syncFillButtonState();
+  } catch {
+    setError("Open the mobile.bg photos step before using Upload Images.");
   }
 }
 
@@ -348,10 +475,12 @@ async function initializePopup() {
       renderPaired(pairedSession);
       await loadActiveListing(pairedSession.pairingToken);
       startListingPolling(pairedSession.pairingToken);
+      await syncFillButtonState();
       return;
     }
 
     renderIdle();
+    await syncFillButtonState();
   } catch (error) {
     renderIdle();
     setError(error.message || "Could not restore pairing state.");
@@ -360,7 +489,8 @@ async function initializePopup() {
 
 elements.generateButton.addEventListener("click", handleGenerateClick);
 elements.disconnectButton.addEventListener("click", handleDisconnectClick);
-elements.fillOlxButton.addEventListener("click", handleFillOlxClick);
+elements.fillListingButton.addEventListener("click", handleFillListingClick);
+elements.fillImagesButton.addEventListener("click", handleFillImagesClick);
 elements.refreshListingButton.addEventListener("click", handleRefreshListingClick);
 
 initializePopup();

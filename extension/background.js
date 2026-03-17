@@ -1,32 +1,4 @@
-const SUPPORTED_RULES = [
-  {
-    origin: "https://www.olx.bg",
-    pathPrefix: "/"
-  },
-  {
-    origin: "https://www.facebook.com",
-    pathPrefix: "/marketplace/"
-  },
-  {
-    origin: "https://www.mobile.bg",
-    pathPrefix: "/"
-  }
-];
-
-function isSupportedUrl(rawUrl) {
-  if (!rawUrl) {
-    return false;
-  }
-
-  try {
-    const url = new URL(rawUrl);
-    return SUPPORTED_RULES.some((rule) => {
-      return url.origin === rule.origin && url.pathname.startsWith(rule.pathPrefix);
-    });
-  } catch {
-    return false;
-  }
-}
+import { findMarketplaceByUrl } from "./src/marketplaces.js";
 
 async function setTabState(tabId, isSupported) {
   await chrome.action.setBadgeBackgroundColor({
@@ -45,7 +17,7 @@ async function updateTabState(tabId, rawUrl) {
     return;
   }
 
-  await setTabState(tabId, isSupportedUrl(rawUrl));
+  await setTabState(tabId, Boolean(findMarketplaceByUrl(rawUrl)));
 }
 
 async function refreshTabState(tabId) {
