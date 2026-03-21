@@ -1,6 +1,11 @@
 export type RootStackParamList = {
   Home: undefined;
   QRScanner: undefined;
-  CreateListing: undefined;
-  ListingPreview: undefined;
+  CreateListing: {
+    mode?: "new" | "edit";
+    listingId?: string;
+  } | undefined;
+  ListingPreview: {
+    listingId?: string;
+  } | undefined;
 };

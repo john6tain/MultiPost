@@ -93,3 +93,8 @@ export type ListingPayload = {
   postingTargets: PostingTargetId[];
   marketplaceData?: MarketplaceData;
 };
+
+export type SavedListingDraft = ListingDraft & {
+  id: string;
+  updatedAt: number;
+};

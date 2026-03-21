@@ -1,27 +1,40 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAppState } from "../hooks/useAppState";
 import { sendListing, uploadListingImages } from "../services/api";
 import { ListingPayload } from "../types/listing";
+import { RootStackParamList } from "../types/navigation";
 import { theme } from "../theme";
 
-export default function ListingPreviewScreen() {
-  const { pairingSession, listingDraft } = useAppState();
+type Props = NativeStackScreenProps<RootStackParamList, "ListingPreview">;
+
+export default function ListingPreviewScreen({ navigation, route }: Props) {
+  const { pairingSession, listingDrafts } = useAppState();
+  const listingId = route.params?.listingId;
+  const listingDraft = (typeof listingId === "string"
+    ? listingDrafts.find((item) => item.id === listingId)
+    : listingDrafts[0]) ?? null;
   const [isSending, setIsSending] = useState(false);
 
   const listingPayload = useMemo<ListingPayload>(() => ({
-    title: listingDraft.title.trim(),
-    description: listingDraft.description.trim(),
-    price: Number(listingDraft.price) || 0,
-    category: listingDraft.category.trim(),
-    location: listingDraft.location.trim(),
-    images: listingDraft.images.map((image) => image.uri),
-    postingTargets: listingDraft.postingTargets,
-    marketplaceData: listingDraft.marketplaceData ?? {}
+    title: listingDraft?.title.trim() ?? "",
+    description: listingDraft?.description.trim() ?? "",
+    price: Number(listingDraft?.price ?? "") || 0,
+    category: listingDraft?.category.trim() ?? "",
+    location: listingDraft?.location.trim() ?? "",
+    images: listingDraft?.images.map((image) => image.uri) ?? [],
+    postingTargets: listingDraft?.postingTargets ?? [],
+    marketplaceData: listingDraft?.marketplaceData ?? {}
   }), [listingDraft]);
 
   async function handleSend() {
+    if (!listingDraft) {
+      Alert.alert("No listing", "Create a listing first.");
+      return;
+    }
+
     if (!pairingSession) {
       Alert.alert("Desktop not connected", "Scan the desktop QR code before sending a listing.");
       return;
@@ -48,7 +61,10 @@ export default function ListingPreviewScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
+      <Pressable
+        onPress={() => navigation.navigate("CreateListing", { mode: "edit", listingId: listingDraft?.id })}
+        style={styles.card}
+      >
         <Text style={styles.title}>{listingPayload.title || "Untitled listing"}</Text>
         <Text style={styles.price}>{listingPayload.price ? `${listingPayload.price} lv` : "No price"}</Text>
         <Text style={styles.meta}>{listingPayload.category || "No category"}</Text>
@@ -59,10 +75,10 @@ export default function ListingPreviewScreen() {
             : "Targets: not set"}
         </Text>
         <Text style={styles.description}>{listingPayload.description || "No description"}</Text>
-      </View>
+      </Pressable>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageRow}>
-        {listingDraft.images.map((image) => (
+        {(listingDraft?.images ?? []).map((image) => (
           <Image key={image.uri} source={{ uri: image.uri }} style={styles.image} />
         ))}
       </ScrollView>
@@ -70,7 +86,7 @@ export default function ListingPreviewScreen() {
       <PrimaryButton
         title={pairingSession ? (isSending ? "Sending..." : "Send to Desktop") : "Pair Desktop First"}
         onPress={handleSend}
-        disabled={isSending || !pairingSession}
+        disabled={isSending || !pairingSession || !listingDraft}
       />
     </ScrollView>
   );

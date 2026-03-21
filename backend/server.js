@@ -6,6 +6,7 @@ const { randomUUID } = require("crypto");
 
 const PORT = 3000;
 const PAIRING_TTL_SECONDS = 120;
+const PAIRED_SESSION_TTL_SECONDS = 60 * 60 * 24;
 const uploadsDir = path.join(__dirname, "uploads");
 const sessions = new Map();
 
@@ -57,6 +58,10 @@ function getSession(token) {
   if (Date.now() >= session.expiresAt) {
     sessions.delete(token);
     return null;
+  }
+
+  if (session.paired) {
+    session.expiresAt = Date.now() + PAIRED_SESSION_TTL_SECONDS * 1000;
   }
 
   return session;
@@ -174,6 +179,7 @@ app.post("/api/mobile/pair-extension", (request, response) => {
   session.paired = true;
   session.userId = "user_1";
   session.deviceName = deviceName;
+  session.expiresAt = Date.now() + PAIRED_SESSION_TTL_SECONDS * 1000;
 
   sendJson(response, 200, buildPairedResponse(session));
 });
@@ -239,6 +245,7 @@ app.post("/api/extension/pairing-confirm/:token", (request, response) => {
   session.deviceName = typeof request.body?.deviceName === "string" && request.body.deviceName
     ? request.body.deviceName
     : "John's phone";
+  session.expiresAt = Date.now() + PAIRED_SESSION_TTL_SECONDS * 1000;
 
   sendJson(response, 200, buildPairedResponse(session));
 });

@@ -1,230 +1,410 @@
 (function registerBazarBgMarketplaceAdapter() {
   const { registerMarketplaceAdapter, helpers } = globalThis.MultiPostContent;
 
-  const IMAGE_SELECTORS = [
-    'input[type="file"][accept*="image"]',
-    'input[type="file"][multiple]',
-    'input[type="file"]'
-  ];
+  const CREATE_PATH_PREFIX = "/ads/save";
+  const LOGIN_PATH_PREFIX = "/user/login";
+  const DEFAULT_TIMEOUT_MS = 8000;
+  const DEPENDENCY_TIMEOUT_MS = 12000;
+  const POLL_INTERVAL_MS = 120;
+  const IMAGE_UPLOAD_TIMEOUT_MS = 20000;
 
-  const CATEGORY_LABELS = ["Рубрика", "Категория"];
-  const SUBCATEGORY_LABELS = ["Подрубрика", "Подкатегория"];
-  const LEAF_CATEGORY_LABELS = ["Марка", "Подкатегория"];
-
-  const SCHEMA_FIELDS = {
-    generic_goods: [
-      { name: "title", labels: ["Заглавие"], required: true },
-      { name: "description", labels: ["Описание"], required: true, multiline: true },
-      { name: "price", labels: ["Цена"], required: true },
-      { name: "condition", labels: ["Състояние"] },
-      { name: "delivery", labels: ["Доставка"] },
-      { name: "kind", labels: ["Вид"] },
-      { name: "location", labels: ["Локация", "Населено място", "Град"], required: true },
-      { name: "phone", labels: ["Телефон", "Телефон за връзка"] }
-    ],
-    auto_accessories: [
-      { name: "title", labels: ["Заглавие"], required: true },
-      { name: "description", labels: ["Описание"], required: true, multiline: true },
-      { name: "price", labels: ["Цена"], required: true },
-      { name: "condition", labels: ["Състояние"] },
-      { name: "vehicleType", labels: ["Тип мпс"], required: true },
-      { name: "accessoryType", labels: ["Aксесоар", "Аксесоар"], required: true },
-      { name: "location", labels: ["Локация", "Населено място", "Град"], required: true },
-      { name: "phone", labels: ["Телефон", "Телефон за връзка"] }
-    ],
-    real_estate: [
-      { name: "title", labels: ["Заглавие"], required: true },
-      { name: "description", labels: ["Описание"], required: true, multiline: true },
-      { name: "price", labels: ["Цена"], required: true },
-      { name: "location", labels: ["Локация", "Населено място", "Град"], required: true },
-      { name: "phone", labels: ["Телефон", "Телефон за връзка"] },
-      { name: "dealType", labels: ["Тип сделка"], required: true },
-      { name: "propertyType", labels: ["Тип апартамент", "Тип имот"], required: true },
-      { name: "areaSqm", labels: ["Квадратура"], required: true },
-      { name: "constructionType", labels: ["Вид строителство"] },
-      { name: "floor", labels: ["Eтаж", "Етаж"] },
-      { name: "year", labels: ["Година"] }
-    ],
-    jobs_services: [
-      { name: "title", labels: ["Заглавие"], required: true },
-      { name: "description", labels: ["Описание"], required: true, multiline: true },
-      { name: "salary_or_price", labels: ["Заплата", "Цена"] },
-      { name: "location", labels: ["Локация", "Населено място", "Град"], required: true },
-      { name: "phone", labels: ["Телефон", "Телефон за връзка"] }
+  const SELECTORS = {
+    form: 'form[action="/ads/save"]',
+    title: '#title, input[name="title"]',
+    description: "#descr, textarea[name=\"description\"]",
+    price: 'input[name="price"]',
+    currency: 'select[name="currency"]',
+    phone: '#tel, input[name="phone"]',
+    hidePhone: 'input[name="hide_phone"]',
+    priceType: 'input[name="price_type"]',
+    categoryId: '#category_id, input[name="category_id"]',
+    provinceCityLocation: "#province_city_location",
+    populatedLocation: "#populated_location",
+    provinceId: 'input[name="province_id"]',
+    cityId: 'input[name="city_id"]',
+    districtId: 'input[name="district_id"]',
+    latitude: "#latInput, input[name=\"lat\"]",
+    longitude: "#lngInput, input[name=\"long\"]",
+    exactCoordinates: "#exactCoordinatesInput, input[name=\"exact_coordinates\"]",
+    videoUrl: 'input[name="video_url"]',
+    pics: "#pics, input[name=\"pics\"]",
+    rubChooser: "#rubChooser",
+    rubChooserPopup: "#rubChooserPopup",
+    confirmPhone: "#confirmPhone",
+    confirmCode: "#confirmCode",
+    imageUploadRoot: "#imgUpload",
+    imageFileInput: [
+      '#imgUpload input[type="file"][id^="html5_"]',
+      '#imgUpload input[type="file"][multiple]',
+      '#imgUpload input[type="file"]',
+      'input[type="file"][id^="html5_"]',
+      'input[type="file"][multiple]'
     ]
   };
 
-  function normalizeText(value) {
-    return String(value || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-  }
+  const SCHEMA_FIELD_NAMES = {
+    generic_goods: ["condition", "delivery", "kind"],
+    auto_accessories: ["condition", "vehicleType", "accessoryType"],
+    real_estate: ["dealType", "propertyType", "areaSqm", "constructionType", "floor", "year"],
+    jobs_services: []
+  };
 
   function isVisible(element) {
     if (!(element instanceof HTMLElement)) {
       return false;
     }
 
-    const style = window.getComputedStyle(element);
-    return style.display !== "none" && style.visibility !== "hidden";
+    const styles = window.getComputedStyle(element);
+    return styles.display !== "none" && styles.visibility !== "hidden";
   }
 
-  function isFormControl(element) {
-    return element instanceof HTMLInputElement
-      || element instanceof HTMLTextAreaElement
-      || element instanceof HTMLSelectElement;
+  function normalizeValue(value) {
+    return String(value ?? "").trim();
   }
 
-  function findControlInside(element) {
-    if (!element) {
-      return null;
-    }
+  async function waitFor(check, timeoutMs = DEFAULT_TIMEOUT_MS, errorMessage = "Timed out while waiting for bazar.bg UI.") {
+    const startedAt = Date.now();
 
-    if (isFormControl(element)) {
-      return element;
-    }
-
-    return element.querySelector("input, textarea, select");
-  }
-
-  function findNearbyControl(labelElement) {
-    if (!labelElement) {
-      return null;
-    }
-
-    if (labelElement instanceof HTMLLabelElement && labelElement.htmlFor) {
-      const target = document.getElementById(labelElement.htmlFor);
-      if (isFormControl(target)) {
-        return target;
+    while (Date.now() - startedAt <= timeoutMs) {
+      const result = check();
+      if (result) {
+        return result;
       }
+      await helpers.wait(POLL_INTERVAL_MS);
     }
 
-    const nested = findControlInside(labelElement);
-    if (nested) {
-      return nested;
-    }
-
-    let current = labelElement.nextElementSibling;
-    while (current) {
-      const control = findControlInside(current);
-      if (control) {
-        return control;
-      }
-      current = current.nextElementSibling;
-    }
-
-    const row = labelElement.closest("div, li, td, th, section");
-    if (row) {
-      const control = row.querySelector("input, textarea, select");
-      if (control) {
-        return control;
-      }
-    }
-
-    return null;
+    throw new Error(errorMessage);
   }
 
-  function findControlByLabels(labels) {
-    const candidates = Array.from(document.querySelectorAll("label, span, div, p, strong, td, th"))
-      .filter((element) => isVisible(element))
-      .filter((element) => {
-        const text = normalizeText(element.textContent);
-        return labels.some((label) => text.includes(normalizeText(label)));
-      });
-
-    for (const candidate of candidates) {
-      const control = findNearbyControl(candidate);
-      if (control) {
-        return control;
-      }
-    }
-
-    return null;
+  async function waitForElement(selector, timeoutMs = DEFAULT_TIMEOUT_MS) {
+    return waitFor(
+      () => document.querySelector(selector),
+      timeoutMs,
+      `Could not find required bazar.bg element: ${selector}`
+    );
   }
 
-  function setControlValue(control, value) {
-    if (!control || value == null || value === "") {
+  function dispatchChange(element) {
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    element.dispatchEvent(new Event("blur", { bubbles: true }));
+  }
+
+  function setSelectWithFallback(selectElement, value) {
+    const normalized = normalizeValue(value).toLowerCase();
+    if (!(selectElement instanceof HTMLSelectElement) || !normalized) {
       return false;
     }
 
-    if (control instanceof HTMLSelectElement) {
-      return helpers.setSelectValue(control, value, { dispatchEvents: true });
+    const didSetByHelper = helpers.setSelectValue(selectElement, value, { dispatchEvents: true });
+    if (didSetByHelper) {
+      return true;
     }
 
-    return helpers.setFieldValue(control, value);
-  }
+    const option = Array.from(selectElement.options).find((item) => {
+      return normalizeValue(item.value).toLowerCase() === normalized
+        || normalizeValue(item.textContent).toLowerCase() === normalized;
+    });
 
-  function clickCategoryAnchor(columnId, categoryId) {
-    if (!categoryId) {
+    if (!option) {
       return false;
     }
 
-    const anchor = document.querySelector(`#${columnId} a[data-id="${categoryId}"]`);
-    if (!(anchor instanceof HTMLElement)) {
-      return false;
-    }
-
-    anchor.click();
+    selectElement.value = option.value;
+    dispatchChange(selectElement);
     return true;
   }
 
-  function getFieldValue(listing, bazarData, fieldName) {
-    const explicitValue = bazarData?.fields?.[fieldName];
-    if (explicitValue) {
-      return explicitValue;
+  function setFieldValue(element, value) {
+    const normalized = normalizeValue(value);
+    if (!normalized || !element) {
+      return false;
+    }
+
+    if (element instanceof HTMLSelectElement) {
+      return setSelectWithFallback(element, normalized);
+    }
+
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      return helpers.setFieldValue(element, normalized);
+    }
+
+    return false;
+  }
+
+  function setCheckboxValue(element, checked) {
+    if (!(element instanceof HTMLInputElement) || element.type !== "checkbox") {
+      return false;
+    }
+
+    element.checked = checked;
+    dispatchChange(element);
+    return true;
+  }
+
+  function setRadioValue(value) {
+    const normalized = normalizeValue(value).toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+
+    const radios = Array.from(document.querySelectorAll(SELECTORS.priceType));
+    const target = radios.find((radio) => {
+      if (!(radio instanceof HTMLInputElement)) {
+        return false;
+      }
+
+      return normalizeValue(radio.value).toLowerCase() === normalized
+        || normalizeValue(radio.id).toLowerCase() === normalized;
+    });
+
+    if (!(target instanceof HTMLInputElement)) {
+      return false;
+    }
+
+    target.checked = true;
+    dispatchChange(target);
+    return true;
+  }
+
+  function getSchemaFieldNames(schemaKey) {
+    return SCHEMA_FIELD_NAMES[schemaKey] ?? SCHEMA_FIELD_NAMES.generic_goods;
+  }
+
+  function getBazarFields(listing) {
+    return listing.marketplaceData?.bazarBg?.fields ?? {};
+  }
+
+  function getFieldValue(listing, fieldName) {
+    const bazarFields = getBazarFields(listing);
+    const explicit = normalizeValue(bazarFields[fieldName]);
+    if (explicit) {
+      return explicit;
     }
 
     switch (fieldName) {
       case "title":
-        return listing.title || "";
+        return normalizeValue(listing.title);
       case "description":
-        return listing.description || "";
+        return normalizeValue(listing.description);
       case "price":
       case "salary_or_price":
         return listing.price != null ? String(listing.price) : "";
       case "location":
-        return listing.location || "";
+        return normalizeValue(listing.location);
+      case "currency":
+        return "2";
+      case "price_type":
+        return "2";
       default:
         return "";
     }
   }
 
-  async function fillCategoryFields(bazarData) {
-    if (!bazarData) {
+  function getControlForSchemaField(fieldName) {
+    const escaped = CSS.escape(fieldName);
+    return document.querySelector(`[name="${escaped}"], #${escaped}`);
+  }
+
+  async function waitForSelectOptions(selectElement, timeoutMs = DEPENDENCY_TIMEOUT_MS) {
+    if (!(selectElement instanceof HTMLSelectElement)) {
       return;
     }
 
-    if (clickCategoryAnchor("colMain", bazarData.topLevelCategoryId)) {
-      await helpers.wait(400);
-    } else {
-      const categoryControl = findControlByLabels(CATEGORY_LABELS);
-      if (categoryControl && bazarData.topLevelCategory) {
-        setControlValue(categoryControl, bazarData.topLevelCategory);
-        await helpers.wait(500);
+    await waitFor(
+      () => !selectElement.disabled && selectElement.options.length > 1,
+      timeoutMs,
+      `Dependent dropdown ${selectElement.id || selectElement.name || "unknown"} did not load in time.`
+    );
+  }
+
+  async function fillLocationFlow(listing) {
+    const provinceSelect = document.querySelector(SELECTORS.provinceCityLocation);
+    const citySelect = document.querySelector(SELECTORS.populatedLocation);
+
+    const provinceValue = getFieldValue(listing, "province_city_location");
+    if (provinceSelect instanceof HTMLSelectElement && provinceValue) {
+      const didSetProvince = setSelectWithFallback(provinceSelect, provinceValue);
+      if (didSetProvince && citySelect instanceof HTMLSelectElement) {
+        await waitForSelectOptions(citySelect).catch(() => undefined);
       }
     }
 
-    if (clickCategoryAnchor("colRub", bazarData.subcategoryId)) {
-      await helpers.wait(400);
-    } else {
-      const subcategoryControl = findControlByLabels(SUBCATEGORY_LABELS);
-      if (subcategoryControl && bazarData.subcategory) {
-        setControlValue(subcategoryControl, bazarData.subcategory);
-        await helpers.wait(500);
-      }
+    const cityValue = getFieldValue(listing, "populated_location");
+    if (citySelect instanceof HTMLSelectElement && cityValue) {
+      setSelectWithFallback(citySelect, cityValue);
     }
 
-    if (clickCategoryAnchor("colSub", bazarData.leafCategoryId)) {
-      await helpers.wait(400);
+    setFieldValue(document.querySelector(SELECTORS.provinceId), getFieldValue(listing, "province_id"));
+    setFieldValue(document.querySelector(SELECTORS.cityId), getFieldValue(listing, "city_id"));
+    setFieldValue(document.querySelector(SELECTORS.districtId), getFieldValue(listing, "district_id"));
+    setFieldValue(document.querySelector(SELECTORS.latitude), getFieldValue(listing, "lat"));
+    setFieldValue(document.querySelector(SELECTORS.longitude), getFieldValue(listing, "long"));
+    setFieldValue(document.querySelector(SELECTORS.exactCoordinates), getFieldValue(listing, "exact_coordinates"));
+  }
+
+  async function openRubChooserPopup() {
+    const chooser = await waitForElement(SELECTORS.rubChooser);
+    const popup = document.querySelector(SELECTORS.rubChooserPopup);
+
+    if (!isVisible(popup)) {
+      chooser.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await waitFor(
+        () => isVisible(document.querySelector(SELECTORS.rubChooserPopup)),
+        DEFAULT_TIMEOUT_MS,
+        "Could not open bazar.bg category chooser."
+      );
+    }
+  }
+
+  async function clickCategoryNode(columnSelector, categoryId, label) {
+    if (!normalizeValue(categoryId)) {
+      return false;
+    }
+
+    const escapedId = CSS.escape(String(categoryId));
+    const selector = `${columnSelector} a[data-id="${escapedId}"]`;
+    const node = await waitFor(
+      () => document.querySelector(selector),
+      DEPENDENCY_TIMEOUT_MS,
+      `Could not find ${label} category option in bazar.bg chooser.`
+    );
+
+    if (!(node instanceof HTMLElement)) {
+      return false;
+    }
+
+    node.click();
+    await helpers.wait(350);
+    return true;
+  }
+
+  async function applyCategorySelection(listing) {
+    const bazar = listing.marketplaceData?.bazarBg;
+    const topLevelId = normalizeValue(bazar?.topLevelCategoryId);
+    const subcategoryId = normalizeValue(bazar?.subcategoryId);
+    const leafId = normalizeValue(bazar?.leafCategoryId);
+    const targetCategoryId = leafId || subcategoryId || topLevelId;
+
+    if (!targetCategoryId) {
       return;
     }
 
-    const leafCategoryControl = findControlByLabels(LEAF_CATEGORY_LABELS);
-    if (leafCategoryControl && bazarData.leafCategory) {
-      setControlValue(leafCategoryControl, bazarData.leafCategory);
-      await helpers.wait(500);
+    await openRubChooserPopup();
+    await clickCategoryNode("#colMain", topLevelId, "top-level");
+    if (subcategoryId) {
+      await clickCategoryNode("#colRub", subcategoryId, "subcategory");
     }
+    if (leafId) {
+      await clickCategoryNode("#colSub", leafId, "leaf");
+    }
+
+    const hiddenCategory = await waitForElement(SELECTORS.categoryId);
+    const hiddenValue = normalizeValue(hiddenCategory.value);
+    if (hiddenValue !== targetCategoryId) {
+      hiddenCategory.value = targetCategoryId;
+      dispatchChange(hiddenCategory);
+    }
+  }
+
+  function resolveImageSelectors() {
+    return SELECTORS.imageFileInput;
+  }
+
+  async function waitForPicsPopulation(previousValue) {
+    const picsInput = document.querySelector(SELECTORS.pics);
+    if (!(picsInput instanceof HTMLInputElement)) {
+      return false;
+    }
+
+    try {
+      await waitFor(
+        () => {
+          const nextValue = normalizeValue(picsInput.value);
+          return Boolean(nextValue && nextValue !== normalizeValue(previousValue));
+        },
+        IMAGE_UPLOAD_TIMEOUT_MS,
+        "Image upload did not finalize (#pics stayed empty)."
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function attachImagesAndConfirm(listing) {
+    if (!Array.isArray(listing.images) || !listing.images.length) {
+      return { attached: false, confirmed: false };
+    }
+
+    await waitForElement(SELECTORS.imageUploadRoot, DEPENDENCY_TIMEOUT_MS);
+    const picsInput = document.querySelector(SELECTORS.pics);
+    const previousValue = picsInput instanceof HTMLInputElement ? picsInput.value : "";
+
+    const attached = await helpers.attachListingImages(resolveImageSelectors(), listing.images);
+    if (!attached) {
+      return { attached: false, confirmed: false };
+    }
+
+    const confirmed = await waitForPicsPopulation(previousValue);
+    return { attached: true, confirmed };
+  }
+
+  function resolveBlockedByPhoneVerification() {
+    const confirmPhone = document.querySelector(SELECTORS.confirmPhone);
+    const confirmCode = document.querySelector(SELECTORS.confirmCode);
+
+    if (!isVisible(confirmPhone) && !isVisible(confirmCode)) {
+      return false;
+    }
+
+    const closeButton = document.querySelector(
+      "#confirmPhone .close, #confirmCode .close, #confirmPhone [data-dismiss], #confirmCode [data-dismiss]"
+    );
+
+    if (closeButton instanceof HTMLElement) {
+      closeButton.click();
+      return false;
+    }
+
+    return true;
+  }
+
+  async function fillMainFields(listing) {
+    setFieldValue(await waitForElement(SELECTORS.title), getFieldValue(listing, "title"));
+    setFieldValue(await waitForElement(SELECTORS.description), getFieldValue(listing, "description"));
+    setFieldValue(await waitForElement(SELECTORS.price), getFieldValue(listing, "price"));
+    setFieldValue(document.querySelector(SELECTORS.currency), getFieldValue(listing, "currency"));
+    setRadioValue(getFieldValue(listing, "price_type"));
+    setFieldValue(document.querySelector(SELECTORS.phone), getFieldValue(listing, "phone"));
+    setCheckboxValue(
+      document.querySelector(SELECTORS.hidePhone),
+      ["1", "true", "yes"].includes(getFieldValue(listing, "hide_phone").toLowerCase())
+    );
+    setFieldValue(document.querySelector(SELECTORS.videoUrl), getFieldValue(listing, "video_url"));
+  }
+
+  async function fillSchemaSpecificFields(listing, schemaKey) {
+    const missingRequired = [];
+    const requiredFieldNames = getSchemaFieldNames(schemaKey);
+
+    requiredFieldNames.forEach((fieldName) => {
+      const value = getFieldValue(listing, fieldName);
+      if (!value) {
+        missingRequired.push(fieldName);
+        return;
+      }
+
+      const control = getControlForSchemaField(fieldName);
+      if (!control) {
+        missingRequired.push(fieldName);
+        return;
+      }
+
+      setFieldValue(control, value);
+    });
+
+    return missingRequired;
   }
 
   registerMarketplaceAdapter({
@@ -233,72 +413,97 @@
     matches(url) {
       return url.origin === "https://bazar.bg";
     },
-    async fill(listing) {
-      if (window.location.pathname.startsWith("/user/login")) {
+    async fill(listing, context = {}) {
+      const { imagesOnly = false } = context;
+
+      if (window.location.pathname.startsWith(LOGIN_PATH_PREFIX)) {
         return {
           ok: false,
           consumedImages: false,
-          message: "Log in to bazar.bg first, then open the posting form."
+          message: "Log in to bazar.bg first, then open https://bazar.bg/ads/save."
         };
       }
 
-      const bazarData = listing.marketplaceData?.bazarBg;
-      const schemaKey = bazarData?.schemaKey || "generic_goods";
-      const schemaFields = SCHEMA_FIELDS[schemaKey] ?? SCHEMA_FIELDS.generic_goods;
-
-      await fillCategoryFields(bazarData);
-
-      const missingRequired = [];
-
-      for (const field of schemaFields) {
-        const value = getFieldValue(listing, bazarData, field.name);
-        if (!value) {
-          if (field.required) {
-            missingRequired.push(field.labels[0]);
-          }
-          continue;
-        }
-
-        const control = findControlByLabels(field.labels);
-        if (!control) {
-          if (field.required) {
-            missingRequired.push(field.labels[0]);
-          }
-          continue;
-        }
-
-        setControlValue(control, value);
-
-        if (field.name === "title" || field.name === "description") {
-          await helpers.wait(100);
-        }
-      }
-
-      const imagesAttached = await helpers.attachListingImages(IMAGE_SELECTORS, listing.images);
-      const titleControl = findControlByLabels(["Заглавие"]);
-
-      if (!titleControl) {
+      if (!window.location.pathname.startsWith(CREATE_PATH_PREFIX)) {
         return {
           ok: false,
           consumedImages: false,
-          message: "Could not find the bazar.bg posting form fields on this page."
+          message: "Open bazar.bg create page at https://bazar.bg/ads/save before using Fill Form."
+        };
+      }
+
+      await waitForElement(SELECTORS.form);
+
+      if (resolveBlockedByPhoneVerification()) {
+        return {
+          ok: false,
+          consumedImages: false,
+          message: "Phone verification popup is blocking the form. Complete/close it and retry."
+        };
+      }
+
+      if (imagesOnly) {
+        const imagesResult = await attachImagesAndConfirm(listing);
+
+        if (!imagesResult.attached) {
+          return {
+            ok: false,
+            consumedImages: false,
+            message: "Could not find the bazar.bg image upload input under #imgUpload."
+          };
+        }
+
+        if (!imagesResult.confirmed) {
+          return {
+            ok: false,
+            consumedImages: false,
+            message: "Images were selected but bazar.bg did not confirm upload (#pics was not populated)."
+          };
+        }
+
+        return {
+          ok: true,
+          consumedImages: true,
+          message: "Attached bazar.bg images successfully."
+        };
+      }
+
+      await applyCategorySelection(listing);
+      await fillMainFields(listing);
+      await fillLocationFlow(listing);
+
+      const schemaKey = listing.marketplaceData?.bazarBg?.schemaKey || "generic_goods";
+      const missingRequired = await fillSchemaSpecificFields(listing, schemaKey);
+
+      const imagesResult = await attachImagesAndConfirm(listing);
+      if (!imagesResult.attached) {
+        return {
+          ok: false,
+          consumedImages: false,
+          message: "Could not find the bazar.bg image upload input under #imgUpload."
+        };
+      }
+
+      if (!imagesResult.confirmed) {
+        return {
+          ok: false,
+          consumedImages: false,
+          message: "Images were selected but bazar.bg did not confirm upload (#pics was not populated)."
         };
       }
 
       if (missingRequired.length) {
         return {
           ok: true,
-          consumedImages: imagesAttached,
-          message: `Filled bazar.bg best-effort. Review required fields manually: ${missingRequired.join(", ")}.`
+          consumedImages: true,
+          message: `Filled bazar.bg with required core data. Review category-specific fields: ${missingRequired.join(", ")}.`
         };
       }
 
       return {
         ok: true,
-        consumedImages: imagesAttached,
-        message: imagesAttached
-          ? "Filled the bazar.bg form and attached images where possible."
-          : "Filled the bazar.bg form. If images are still missing, use the live uploader manually."
+        consumedImages: true,
+        message: "Filled bazar.bg form and confirmed image upload."
       };
     }
   });

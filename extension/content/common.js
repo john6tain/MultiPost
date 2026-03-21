@@ -1,5 +1,6 @@
 (function initializeContentBridge() {
   const API_BASE_URL = "http://localhost:3000";
+  const IMAGE_FETCH_TIMEOUT_MS = 15000;
 
   function queryFirst(selectors) {
     for (const selector of selectors) {
@@ -78,7 +79,25 @@
   }
 
   async function fetchImageAsFile(imageUrl, index) {
-    const response = await fetch(toAbsoluteImageUrl(imageUrl));
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, IMAGE_FETCH_TIMEOUT_MS);
+
+    let response;
+    try {
+      response = await fetch(toAbsoluteImageUrl(imageUrl), {
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error(`Image ${index + 1} download timed out.`);
+      }
+
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       throw new Error(`Could not fetch image ${index + 1}.`);

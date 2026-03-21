@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { clearStoredListing, emptyListingDraft, getStoredListing, saveStoredListing } from "../services/listingService";
-import { ListingDraft } from "../types/listing";
+import { clearStoredListings, createListingId, emptyListingDraft, getStoredListings, saveStoredListings } from "../services/listingService";
+import { ListingDraft, SavedListingDraft } from "../types/listing";
 import { PairingSession } from "../types/pairing";
 
 const PAIRING_STORAGE_KEY = "pairingSession";
@@ -9,10 +9,11 @@ const PAIRING_STORAGE_KEY = "pairingSession";
 type AppStateValue = {
   isReady: boolean;
   pairingSession: PairingSession | null;
-  listingDraft: ListingDraft;
+  listingDrafts: SavedListingDraft[];
   setPairingSession: (session: PairingSession | null) => Promise<void>;
-  saveListingDraft: (listing: ListingDraft) => Promise<void>;
-  clearListingDraft: () => Promise<void>;
+  saveListingDraft: (listing: ListingDraft, listingId?: string) => Promise<string>;
+  deleteListingDraft: (listingId: string) => Promise<void>;
+  clearListingDrafts: () => Promise<void>;
 };
 
 const AppStateContext = createContext<AppStateValue | undefined>(undefined);
@@ -20,21 +21,22 @@ const AppStateContext = createContext<AppStateValue | undefined>(undefined);
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [pairingSession, setPairingSessionState] = useState<PairingSession | null>(null);
-  const [listingDraft, setListingDraft] = useState<ListingDraft>(emptyListingDraft);
+  const [listingDrafts, setListingDrafts] = useState<SavedListingDraft[]>([]);
 
   useEffect(() => {
     async function hydrate() {
       const [storedPairing, storedListing] = await Promise.all([
         AsyncStorage.getItem(PAIRING_STORAGE_KEY),
-        getStoredListing()
+        getStoredListings()
       ]);
 
       if (storedPairing) {
         setPairingSessionState(JSON.parse(storedPairing) as PairingSession);
       }
 
-      if (storedListing) {
-        setListingDraft(storedListing);
+      if (storedListing.length) {
+        const sorted = [...storedListing].sort((a, b) => b.updatedAt - a.updatedAt);
+        setListingDrafts(sorted);
       }
 
       setIsReady(true);
@@ -56,14 +58,41 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem(PAIRING_STORAGE_KEY);
   }
 
-  async function saveListingDraft(listing: ListingDraft) {
-    setListingDraft(listing);
-    await saveStoredListing(listing);
+  async function saveListingDraft(listing: ListingDraft, listingId?: string) {
+    const id = listingId || createListingId();
+
+    const nextListing: SavedListingDraft = {
+      ...emptyListingDraft,
+      ...listing,
+      id,
+      updatedAt: Date.now()
+    };
+
+    const nextDrafts = (() => {
+      const existingIndex = listingDrafts.findIndex((item) => item.id === id);
+      if (existingIndex === -1) {
+        return [nextListing, ...listingDrafts];
+      }
+
+      const copy = [...listingDrafts];
+      copy[existingIndex] = nextListing;
+      return copy;
+    })().sort((a, b) => b.updatedAt - a.updatedAt);
+
+    setListingDrafts(nextDrafts);
+    await saveStoredListings(nextDrafts);
+    return id;
   }
 
-  async function clearListingDraft() {
-    setListingDraft(emptyListingDraft);
-    await clearStoredListing();
+  async function deleteListingDraft(listingId: string) {
+    const nextDrafts = listingDrafts.filter((item) => item.id !== listingId);
+    setListingDrafts(nextDrafts);
+    await saveStoredListings(nextDrafts);
+  }
+
+  async function clearListingDrafts() {
+    setListingDrafts([]);
+    await clearStoredListings();
   }
 
   return (
@@ -71,10 +100,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       value={{
         isReady,
         pairingSession,
-        listingDraft,
+        listingDrafts,
         setPairingSession,
         saveListingDraft,
-        clearListingDraft
+        deleteListingDraft,
+        clearListingDrafts
       }}
     >
       {children}

@@ -45,6 +45,7 @@ const state = {
   pairingToken: null,
   latestListing: null
 };
+const TAB_MESSAGE_TIMEOUT_MS = 20000;
 
 function getFillButtonLabel(rawUrl) {
   const marketplace = findMarketplaceByUrl(rawUrl);
@@ -70,6 +71,24 @@ async function getActiveTab() {
   });
 
   return tab ?? null;
+}
+
+async function sendTabMessageWithTimeout(tabId, payload, timeoutMessage) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, TAB_MESSAGE_TIMEOUT_MS);
+
+    chrome.tabs.sendMessage(tabId, payload)
+      .then((response) => {
+        clearTimeout(timeoutId);
+        resolve(response);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 }
 
 async function syncFillButtonState() {
@@ -383,10 +402,10 @@ async function handleFillListingClick() {
   }
 
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, {
+    const response = await sendTabMessageWithTimeout(tab.id, {
       type: "fillListing",
       listing: state.latestListing
-    });
+    }, "Filling timed out. Refresh the page and try again.");
 
     if (!response?.ok) {
       setError(response?.message || `Could not fill the ${marketplace.label} page.`);
@@ -403,8 +422,8 @@ async function handleFillListingClick() {
     }
 
     setError(response?.message || "");
-  } catch {
-    setError(`Open a ${marketplace.label} listing form page before using Fill Form.`);
+  } catch (error) {
+    setError(error?.message || `Open a ${marketplace.label} listing form page before using Fill Form.`);
   }
 }
 
@@ -440,11 +459,15 @@ async function handleFillImagesClick() {
     return;
   }
 
+  const originalFillImagesLabel = elements.fillImagesButton.textContent;
+  elements.fillImagesButton.disabled = true;
+  elements.fillImagesButton.textContent = "Uploading...";
+
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, {
+    const response = await sendTabMessageWithTimeout(tab.id, {
       type: "fillListingImages",
       listing: state.latestListing
-    });
+    }, "Image upload timed out. Check backend connection and retry.");
 
     if (!response?.ok) {
       setError(response?.message || "Could not upload images on mobile.bg.");
@@ -461,9 +484,11 @@ async function handleFillImagesClick() {
     }
 
     setError(response?.message || "");
+  } catch (error) {
+    setError(error?.message || "Open the mobile.bg photos step before using Upload Images.");
+  } finally {
+    elements.fillImagesButton.textContent = originalFillImagesLabel;
     await syncFillButtonState();
-  } catch {
-    setError("Open the mobile.bg photos step before using Upload Images.");
   }
 }
 

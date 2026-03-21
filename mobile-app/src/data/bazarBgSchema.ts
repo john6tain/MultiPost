@@ -342,6 +342,20 @@ export function getBazarBgThirdLevelLabel(subcategoryId: string, leafCategoryId:
 const CONDITION_OPTIONS = makeOptions(["Ново", "Използвано"]);
 const DEAL_TYPE_OPTIONS = makeOptions(["Продава", "Дава под наем"]);
 const CONSTRUCTION_TYPE_OPTIONS = makeOptions(["Панел", "Тухла", "ЕПК", "ПК", "Гредоред"]);
+const PRICE_TYPE_OPTIONS = [
+  { label: "Fixed price (rprice2)", value: "2" },
+  { label: "Negotiable (rprice1)", value: "1" },
+  { label: "By offer (rprice3)", value: "3" }
+];
+const CURRENCY_OPTIONS = [
+  { label: "EUR", value: "2" },
+  { label: "BGN", value: "1" },
+  { label: "USD", value: "3" }
+];
+const YES_NO_OPTIONS = [
+  { label: "No", value: "0" },
+  { label: "Yes", value: "1" }
+];
 
 export const BAZAR_BG_SCHEMAS: Record<BazarBgSchemaKey, BazarBgSchema> = {
   generic_goods: {
@@ -360,11 +374,22 @@ export const BAZAR_BG_SCHEMAS: Record<BazarBgSchemaKey, BazarBgSchema> = {
           { name: "title", label: "Заглавие", type: "text", required: true, placeholder: "Обява" },
           { name: "description", label: "Описание", type: "textarea", required: true, placeholder: "Добавете описание" },
           { name: "price", label: "Цена", type: "text", required: true, placeholder: "150" },
+          { name: "price_type", label: "Price type", type: "select", options: PRICE_TYPE_OPTIONS, placeholder: "Fixed price" },
+          { name: "currency", label: "Currency", type: "select", options: CURRENCY_OPTIONS, placeholder: "EUR" },
           { name: "condition", label: "Състояние", type: "select", options: CONDITION_OPTIONS, dependsOn: "category" },
           { name: "delivery", label: "Доставка", type: "text", dependsOn: "category", placeholder: "Лично предаване" },
           { name: "kind", label: "Вид", type: "text", dependsOn: "subcategory", placeholder: "Трапезни столове" },
           { name: "location", label: "Локация", type: "text", required: true, placeholder: "София" },
-          { name: "phone", label: "Телефон", type: "tel", dependsOn: "account_state", placeholder: "08..." }
+          { name: "province_city_location", label: "Province/City select value", type: "text", placeholder: "15" },
+          { name: "populated_location", label: "Populated place select value", type: "text", placeholder: "1501" },
+          { name: "province_id", label: "Province ID (hidden)", type: "text", placeholder: "15" },
+          { name: "city_id", label: "City ID (hidden)", type: "text", placeholder: "1501" },
+          { name: "district_id", label: "District ID (hidden)", type: "text", placeholder: "0" },
+          { name: "phone", label: "Телефон", type: "tel", dependsOn: "account_state", placeholder: "08..." },
+          { name: "hide_phone", label: "Hide phone", type: "select", options: YES_NO_OPTIONS },
+          { name: "exact_coordinates", label: "Exact coordinates", type: "select", options: YES_NO_OPTIONS },
+          { name: "lat", label: "Latitude", type: "text", placeholder: "42.6977" },
+          { name: "long", label: "Longitude", type: "text", placeholder: "23.3219" }
         ]
       }
     ]
@@ -385,11 +410,16 @@ export const BAZAR_BG_SCHEMAS: Record<BazarBgSchemaKey, BazarBgSchema> = {
           { name: "title", label: "Заглавие", type: "text", required: true, placeholder: "Авто аксесоар" },
           { name: "description", label: "Описание", type: "textarea", required: true, placeholder: "Добавете описание" },
           { name: "price", label: "Цена", type: "text", required: true, placeholder: "120" },
+          { name: "price_type", label: "Price type", type: "select", options: PRICE_TYPE_OPTIONS, placeholder: "Fixed price" },
+          { name: "currency", label: "Currency", type: "select", options: CURRENCY_OPTIONS, placeholder: "EUR" },
           { name: "condition", label: "Състояние", type: "select", options: CONDITION_OPTIONS },
           { name: "vehicleType", label: "Тип мпс", type: "text", required: true, dependsOn: "category", placeholder: "Автомобил" },
           { name: "accessoryType", label: "Aксесоар", type: "text", required: true, dependsOn: "category", placeholder: "Стелки" },
           { name: "location", label: "Локация", type: "text", required: true, placeholder: "Пловдив" },
-          { name: "phone", label: "Телефон", type: "tel", placeholder: "08..." }
+          { name: "province_city_location", label: "Province/City select value", type: "text", placeholder: "16" },
+          { name: "populated_location", label: "Populated place select value", type: "text", placeholder: "1601" },
+          { name: "phone", label: "Телефон", type: "tel", placeholder: "08..." },
+          { name: "hide_phone", label: "Hide phone", type: "select", options: YES_NO_OPTIONS }
         ]
       }
     ]
@@ -410,8 +440,16 @@ export const BAZAR_BG_SCHEMAS: Record<BazarBgSchemaKey, BazarBgSchema> = {
           { name: "title", label: "Заглавие", type: "text", required: true, placeholder: "Двустаен апартамент" },
           { name: "description", label: "Описание", type: "textarea", required: true, placeholder: "Добавете описание" },
           { name: "price", label: "Цена", type: "text", required: true, placeholder: "95000" },
+          { name: "price_type", label: "Price type", type: "select", options: PRICE_TYPE_OPTIONS, placeholder: "Fixed price" },
+          { name: "currency", label: "Currency", type: "select", options: CURRENCY_OPTIONS, placeholder: "EUR" },
           { name: "location", label: "Локация", type: "text", required: true, placeholder: "София, Младост" },
-          { name: "phone", label: "Телефон", type: "tel", placeholder: "08..." }
+          { name: "province_city_location", label: "Province/City select value", type: "text", placeholder: "15" },
+          { name: "populated_location", label: "Populated place select value", type: "text", placeholder: "1501" },
+          { name: "phone", label: "Телефон", type: "tel", placeholder: "08..." },
+          { name: "hide_phone", label: "Hide phone", type: "select", options: YES_NO_OPTIONS },
+          { name: "exact_coordinates", label: "Exact coordinates", type: "select", options: YES_NO_OPTIONS },
+          { name: "lat", label: "Latitude", type: "text", placeholder: "42.6977" },
+          { name: "long", label: "Longitude", type: "text", placeholder: "23.3219" }
         ]
       },
       {
@@ -443,8 +481,13 @@ export const BAZAR_BG_SCHEMAS: Record<BazarBgSchemaKey, BazarBgSchema> = {
           { name: "title", label: "Заглавие", type: "text", required: true, placeholder: "Шофьор категория C" },
           { name: "description", label: "Описание", type: "textarea", required: true, placeholder: "Добавете описание" },
           { name: "salary_or_price", label: "Заплата / Цена", type: "text", dependsOn: "category", placeholder: "2000" },
+          { name: "price_type", label: "Price type", type: "select", options: PRICE_TYPE_OPTIONS, placeholder: "Fixed price" },
+          { name: "currency", label: "Currency", type: "select", options: CURRENCY_OPTIONS, placeholder: "EUR" },
           { name: "location", label: "Локация", type: "text", required: true, placeholder: "Варна" },
-          { name: "phone", label: "Телефон", type: "tel", placeholder: "08..." }
+          { name: "province_city_location", label: "Province/City select value", type: "text", placeholder: "3" },
+          { name: "populated_location", label: "Populated place select value", type: "text", placeholder: "301" },
+          { name: "phone", label: "Телефон", type: "tel", placeholder: "08..." },
+          { name: "hide_phone", label: "Hide phone", type: "select", options: YES_NO_OPTIONS }
         ]
       }
     ]

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -46,6 +46,7 @@ import {
   getBazarBgTopLevelLabel
 } from "../data/bazarBgSchema";
 import { useAppState } from "../hooks/useAppState";
+import { emptyListingDraft } from "../services/listingService";
 import { RootStackParamList } from "../types/navigation";
 import {
   BazarBgSchemaKey,
@@ -63,11 +64,19 @@ const POSTING_TARGETS: Array<{ id: PostingTargetId; label: string }> = [
   { id: "mobile-bg", label: "mobile.bg" },
   { id: "bazar-bg", label: "bazar.bg" }
 ];
+const SHARED_LISTING_FIELD_NAMES = new Set(["title", "description", "price", "salary_or_price", "location"]);
 
-export default function CreateListingScreen({ navigation }: Props) {
-  const { listingDraft, saveListingDraft } = useAppState();
-  const [draft, setDraft] = useState<ListingDraft>(listingDraft);
+export default function CreateListingScreen({ navigation, route }: Props) {
+  const { listingDrafts, saveListingDraft, deleteListingDraft } = useAppState();
+  const isEditMode = route.params?.mode === "edit";
+  const editingListingId = route.params?.listingId;
+  const editingListing = isEditMode ? listingDrafts.find((item) => item.id === editingListingId) : undefined;
+  const [draft, setDraft] = useState<ListingDraft>(editingListing ? toListingDraft(editingListing) : emptyListingDraft);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(editingListing ? toListingDraft(editingListing) : emptyListingDraft);
+  }, [editingListing]);
 
   function updateField<K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -277,6 +286,18 @@ export default function CreateListingScreen({ navigation }: Props) {
       value: item.id
     }));
   }, [bazarBgData?.subcategoryId]);
+  const bazarBgSpecificFieldGroups = useMemo(() => {
+    if (!bazarBgSelectedSchema) {
+      return [];
+    }
+
+    return bazarBgSelectedSchema.fieldGroups
+      .map((group) => ({
+        ...group,
+        fields: group.fields.filter((field) => !SHARED_LISTING_FIELD_NAMES.has(field.name))
+      }))
+      .filter((group) => group.fields.length > 0);
+  }, [bazarBgSelectedSchema]);
 
   async function pickImages(fromCamera: boolean) {
     const permission = fromCamera
@@ -323,21 +344,42 @@ export default function CreateListingScreen({ navigation }: Props) {
     setIsSaving(true);
 
     try {
-      await saveListingDraft(draft);
-      navigation.navigate("ListingPreview");
+      const savedId = await saveListingDraft(draft, editingListing?.id);
+      navigation.replace("ListingPreview", { listingId: savedId });
     } finally {
       setIsSaving(false);
     }
   }
 
+  function handleDeleteListing() {
+    Alert.alert("Delete listing", "Delete the saved draft listing?", [
+      {
+        text: "Cancel",
+        style: "cancel"
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (!editingListing?.id) {
+              Alert.alert("Error", "No listing selected for delete.");
+              return;
+            }
+
+            await deleteListingDraft(editingListing.id);
+            setDraft(emptyListingDraft);
+            navigation.navigate("Home");
+          } catch {
+            Alert.alert("Error", "Could not delete the saved listing.");
+          }
+        }
+      }
+    ]);
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Field label="Title" value={draft.title} onChangeText={(value) => updateField("title", value)} placeholder="Vehicle listing" />
-      <Field label="Description" value={draft.description} onChangeText={(value) => updateField("description", value)} multiline placeholder="Describe the item..." />
-      <Field label="Price" value={draft.price} onChangeText={(value) => updateField("price", value)} keyboardType="numeric" placeholder="330" />
-      <Field label="Category" value={draft.category} onChangeText={(value) => updateField("category", value)} placeholder="Cars" />
-      <Field label="Location" value={draft.location} onChangeText={(value) => updateField("location", value)} placeholder="Sofia" />
-
       <View style={styles.targetsSection}>
         <Text style={styles.sectionTitle}>Posting Targets</Text>
         <Text style={styles.sectionHint}>Choose where this listing is allowed to be posted. Future sites can be added here.</Text>
@@ -356,6 +398,16 @@ export default function CreateListingScreen({ navigation }: Props) {
             );
           })}
         </View>
+      </View>
+
+      <View style={styles.marketplaceSection}>
+        <Text style={styles.sectionTitle}>Listing Details</Text>
+        <Text style={styles.sectionHint}>Shared listing fields used across marketplaces.</Text>
+        <Field label="Title" value={draft.title} onChangeText={(value) => updateField("title", value)} placeholder="Vehicle listing" />
+        <Field label="Description" value={draft.description} onChangeText={(value) => updateField("description", value)} multiline placeholder="Describe the item..." />
+        <Field label="Price" value={draft.price} onChangeText={(value) => updateField("price", value)} keyboardType="numeric" placeholder="330" />
+        <Field label="Category" value={draft.category} onChangeText={(value) => updateField("category", value)} placeholder="Cars" />
+        <Field label="Location" value={draft.location} onChangeText={(value) => updateField("location", value)} placeholder="Sofia" />
       </View>
 
       {showMobileBg ? (
@@ -455,7 +507,7 @@ export default function CreateListingScreen({ navigation }: Props) {
       {showBazarBg ? (
         <View style={styles.marketplaceSection}>
           <Text style={styles.sectionTitle}>bazar.bg</Text>
-          <Text style={styles.sectionHint}>This is a first-pass schema-driven setup from the research pack. The category tree and field groups are captured, while exact live-form selectors will be resolved later.</Text>
+          <Text style={styles.sectionHint}>Shared fields (title, description, price, location) are filled from the main form above. Use this section only for bazar.bg-specific fields.</Text>
 
           <SelectField
             label="Top-level category"
@@ -493,7 +545,7 @@ export default function CreateListingScreen({ navigation }: Props) {
 
           {bazarBgSelectedSchema ? (
             <>
-              {bazarBgSelectedSchema.fieldGroups.map((group) => (
+              {bazarBgSpecificFieldGroups.map((group) => (
                 <View key={group.title} style={styles.group}>
                   <Text style={styles.groupTitle}>{group.title}</Text>
                   {group.fields.map((field) => renderBazarBgField(field, bazarBgFields[field.name] ?? "", updateBazarBgField))}
@@ -506,9 +558,20 @@ export default function CreateListingScreen({ navigation }: Props) {
 
       <PhotoPickerField images={draft.images} onPickFromLibrary={() => pickImages(false)} onTakePhoto={() => pickImages(true)} />
 
-      <View style={styles.actions}>
-        <PrimaryButton title={isSaving ? "Saving..." : "Save Listing"} onPress={handleSave} disabled={isSaving} />
-      </View>
+      {isEditMode ? (
+        <View style={styles.actionsRow}>
+          <View style={styles.actionHalf}>
+            <PrimaryButton title="Delete Listing" onPress={handleDeleteListing} variant="danger" />
+          </View>
+          <View style={styles.actionHalf}>
+            <PrimaryButton title={isSaving ? "Saving..." : "Save Listing"} onPress={handleSave} disabled={isSaving} />
+          </View>
+        </View>
+      ) : (
+        <View style={styles.actions}>
+          <PrimaryButton title={isSaving ? "Saving..." : "Save Listing"} onPress={handleSave} disabled={isSaving} />
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -585,6 +648,15 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: 8
+  },
+  actionsRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  actionHalf: {
+    flex: 1
   },
   marketplaceSection: {
     gap: 12,
@@ -671,3 +743,8 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryText
   }
 });
+
+function toListingDraft(listing: { id: string; updatedAt: number } & ListingDraft): ListingDraft {
+  const { id: _id, updatedAt: _updatedAt, ...draft } = listing;
+  return draft;
+}

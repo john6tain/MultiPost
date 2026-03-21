@@ -9,7 +9,8 @@ import { theme } from "../theme";
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation }: Props) {
-  const { isReady, pairingSession, listingDraft, setPairingSession } = useAppState();
+  const { isReady, pairingSession, listingDrafts, setPairingSession } = useAppState();
+  const hasSavedDrafts = listingDrafts.length > 0;
 
   if (!isReady) {
     return (
@@ -28,9 +29,14 @@ export default function HomeScreen({ navigation }: Props) {
         </Text>
       </View>
 
-      <PrimaryButton title="Scan Desktop QR" onPress={() => navigation.navigate("QRScanner")} />
-      <PrimaryButton title="Create Listing" onPress={() => navigation.navigate("CreateListing")} variant="secondary" />
-
+      {!pairingSession ? (
+        <PrimaryButton title="Scan Desktop QR" onPress={() => navigation.navigate("QRScanner")} />
+      ) : null}
+      <PrimaryButton
+        title="Create Listing"
+        onPress={() => navigation.navigate("CreateListing", { mode: "new" })}
+        variant="secondary"
+      />
       {pairingSession ? (
         <PrimaryButton
           title="Disconnect"
@@ -42,15 +48,21 @@ export default function HomeScreen({ navigation }: Props) {
         />
       ) : null}
 
-      <Pressable
-        onLongPress={() => navigation.navigate("CreateListing")}
-        onPress={() => navigation.navigate("ListingPreview")}
-        style={[styles.card, styles.draftCard]}
-      >
-        <Text style={styles.heading}>Draft Listing</Text>
-        <Text style={styles.status}>{listingDraft.title ? listingDraft.title : "No draft saved yet."}</Text>
-        <Text style={styles.linkText}>Tap to send to desktop. Long press to edit.</Text>
-      </Pressable>
+      {hasSavedDrafts ? (
+        <Text style={styles.heading}>Saved Listings ({listingDrafts.length})</Text>
+      ) : null}
+      {listingDrafts.map((listing) => (
+        <Pressable
+          key={listing.id}
+          onLongPress={() => navigation.navigate("CreateListing", { mode: "edit", listingId: listing.id })}
+          onPress={() => navigation.navigate("ListingPreview", { listingId: listing.id })}
+          style={[styles.card, styles.draftCard]}
+        >
+          <Text style={styles.heading}>{listing.title || "Untitled listing"}</Text>
+          <Text style={styles.status}>{listing.category || "No category"}</Text>
+          <Text style={styles.linkText}>Tap to open. Hold to edit/delete.</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
