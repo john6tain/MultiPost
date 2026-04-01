@@ -192,6 +192,8 @@
         return listing.price != null ? String(listing.price) : "";
       case "location":
         return normalizeValue(listing.location);
+      case "phone":
+        return normalizeValue(listing.phone);
       case "currency":
         return "2";
       case "price_type":

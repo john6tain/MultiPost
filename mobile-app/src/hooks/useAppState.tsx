@@ -1,15 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { clearStoredListings, createListingId, emptyListingDraft, getStoredListings, saveStoredListings } from "../services/listingService";
+import { DEFAULT_LANGUAGE, isLanguage, Language } from "../i18n";
 import { ListingDraft, SavedListingDraft } from "../types/listing";
 import { PairingSession } from "../types/pairing";
 
 const PAIRING_STORAGE_KEY = "pairingSession";
+const LANGUAGE_STORAGE_KEY = "language";
 
 type AppStateValue = {
   isReady: boolean;
+  language: Language;
   pairingSession: PairingSession | null;
   listingDrafts: SavedListingDraft[];
+  setLanguage: (language: Language) => Promise<void>;
   setPairingSession: (session: PairingSession | null) => Promise<void>;
   saveListingDraft: (listing: ListingDraft, listingId?: string) => Promise<string>;
   deleteListingDraft: (listingId: string) => Promise<void>;
@@ -20,18 +24,24 @@ const AppStateContext = createContext<AppStateValue | undefined>(undefined);
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
+  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
   const [pairingSession, setPairingSessionState] = useState<PairingSession | null>(null);
   const [listingDrafts, setListingDrafts] = useState<SavedListingDraft[]>([]);
 
   useEffect(() => {
     async function hydrate() {
-      const [storedPairing, storedListing] = await Promise.all([
+      const [storedPairing, storedLanguage, storedListing] = await Promise.all([
         AsyncStorage.getItem(PAIRING_STORAGE_KEY),
+        AsyncStorage.getItem(LANGUAGE_STORAGE_KEY),
         getStoredListings()
       ]);
 
       if (storedPairing) {
         setPairingSessionState(JSON.parse(storedPairing) as PairingSession);
+      }
+
+      if (storedLanguage && isLanguage(storedLanguage)) {
+        setLanguageState(storedLanguage);
       }
 
       if (storedListing.length) {
@@ -46,6 +56,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setIsReady(true);
     });
   }, []);
+
+  async function setLanguage(language: Language) {
+    setLanguageState(language);
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  }
 
   async function setPairingSession(session: PairingSession | null) {
     setPairingSessionState(session);
@@ -99,8 +114,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     <AppStateContext.Provider
       value={{
         isReady,
+        language,
         pairingSession,
         listingDrafts,
+        setLanguage,
         setPairingSession,
         saveListingDraft,
         deleteListingDraft,

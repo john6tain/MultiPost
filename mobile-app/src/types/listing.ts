@@ -78,6 +78,7 @@ export type ListingDraft = {
   price: string;
   category: string;
   location: string;
+  phone: string;
   images: ListingImage[];
   postingTargets: PostingTargetId[];
   marketplaceData?: MarketplaceData;
@@ -89,6 +90,7 @@ export type ListingPayload = {
   price: number;
   category: string;
   location: string;
+  phone: string;
   images: string[];
   postingTargets: PostingTargetId[];
   marketplaceData?: MarketplaceData;

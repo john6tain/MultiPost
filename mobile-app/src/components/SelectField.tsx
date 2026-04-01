@@ -8,6 +8,8 @@ import {
   TextInput,
   View
 } from "react-native";
+import { useAppState } from "../hooks/useAppState";
+import { t } from "../i18n";
 import { theme } from "../theme";
 
 export type SelectOption = {
@@ -28,8 +30,9 @@ export default function SelectField({
   value,
   options,
   onChangeValue,
-  placeholder = "Select"
+  placeholder = ""
 }: SelectFieldProps) {
+  const { language } = useAppState();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -58,7 +61,7 @@ export default function SelectField({
       <Text style={styles.label}>{label}</Text>
       <Pressable onPress={() => setIsOpen(true)} style={styles.trigger}>
         <Text style={[styles.triggerText, !value && styles.placeholder]}>
-          {value ? selectedLabel : placeholder}
+          {value ? selectedLabel : (placeholder || t(language, "select.default"))}
         </Text>
       </Pressable>
 
@@ -68,14 +71,14 @@ export default function SelectField({
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{label}</Text>
               <Pressable onPress={close}>
-                <Text style={styles.closeText}>Close</Text>
+                <Text style={styles.closeText}>{t(language, "select.close")}</Text>
               </Pressable>
             </View>
 
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search..."
+              placeholder={t(language, "select.search")}
               placeholderTextColor={theme.colors.placeholder}
               style={styles.searchInput}
             />

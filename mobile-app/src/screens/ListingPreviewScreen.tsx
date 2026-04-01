@@ -3,6 +3,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "rea
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAppState } from "../hooks/useAppState";
+import { t } from "../i18n";
 import { sendListing, uploadListingImages } from "../services/api";
 import { ListingPayload } from "../types/listing";
 import { RootStackParamList } from "../types/navigation";
@@ -11,7 +12,7 @@ import { theme } from "../theme";
 type Props = NativeStackScreenProps<RootStackParamList, "ListingPreview">;
 
 export default function ListingPreviewScreen({ navigation, route }: Props) {
-  const { pairingSession, listingDrafts } = useAppState();
+  const { language, pairingSession, listingDrafts } = useAppState();
   const listingId = route.params?.listingId;
   const listingDraft = (typeof listingId === "string"
     ? listingDrafts.find((item) => item.id === listingId)
@@ -24,6 +25,7 @@ export default function ListingPreviewScreen({ navigation, route }: Props) {
     price: Number(listingDraft?.price ?? "") || 0,
     category: listingDraft?.category.trim() ?? "",
     location: listingDraft?.location.trim() ?? "",
+    phone: listingDraft?.phone.trim() ?? "",
     images: listingDraft?.images.map((image) => image.uri) ?? [],
     postingTargets: listingDraft?.postingTargets ?? [],
     marketplaceData: listingDraft?.marketplaceData ?? {}
@@ -31,12 +33,12 @@ export default function ListingPreviewScreen({ navigation, route }: Props) {
 
   async function handleSend() {
     if (!listingDraft) {
-      Alert.alert("No listing", "Create a listing first.");
+      Alert.alert(t(language, "preview.noListingTitle"), t(language, "preview.noListingMessage"));
       return;
     }
 
     if (!pairingSession) {
-      Alert.alert("Desktop not connected", "Scan the desktop QR code before sending a listing.");
+      Alert.alert(t(language, "preview.notConnectedTitle"), t(language, "preview.notConnectedMessage"));
       return;
     }
 
@@ -50,10 +52,10 @@ export default function ListingPreviewScreen({ navigation, route }: Props) {
         images: uploadedImages
       });
 
-      Alert.alert("Sent", "Listing sent to desktop.");
+      Alert.alert(t(language, "preview.sentTitle"), t(language, "preview.sentMessage"));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not send listing.";
-      Alert.alert("Send failed", message);
+      const message = error instanceof Error ? error.message : t(language, "preview.sendFailedMessage");
+      Alert.alert(t(language, "preview.sendFailedTitle"), message);
     } finally {
       setIsSending(false);
     }
@@ -65,16 +67,16 @@ export default function ListingPreviewScreen({ navigation, route }: Props) {
         onPress={() => navigation.navigate("CreateListing", { mode: "edit", listingId: listingDraft?.id })}
         style={styles.card}
       >
-        <Text style={styles.title}>{listingPayload.title || "Untitled listing"}</Text>
-        <Text style={styles.price}>{listingPayload.price ? `${listingPayload.price} lv` : "No price"}</Text>
-        <Text style={styles.meta}>{listingPayload.category || "No category"}</Text>
-        <Text style={styles.meta}>{listingPayload.location || "No location"}</Text>
+        <Text style={styles.title}>{listingPayload.title || t(language, "preview.untitled")}</Text>
+        <Text style={styles.price}>{listingPayload.price ? `${listingPayload.price} lv` : t(language, "preview.noPrice")}</Text>
+        <Text style={styles.meta}>{listingPayload.category || t(language, "preview.noCategory")}</Text>
+        <Text style={styles.meta}>{listingPayload.location || t(language, "preview.noLocation")}</Text>
         <Text style={styles.meta}>
           {listingPayload.postingTargets.length
-            ? `Targets: ${listingPayload.postingTargets.join(", ")}`
-            : "Targets: not set"}
+            ? t(language, "preview.targets", { targets: listingPayload.postingTargets.join(", ") })
+            : t(language, "preview.targetsNotSet")}
         </Text>
-        <Text style={styles.description}>{listingPayload.description || "No description"}</Text>
+        <Text style={styles.description}>{listingPayload.description || t(language, "preview.noDescription")}</Text>
       </Pressable>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageRow}>
@@ -84,7 +86,7 @@ export default function ListingPreviewScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <PrimaryButton
-        title={pairingSession ? (isSending ? "Sending..." : "Send to Desktop") : "Pair Desktop First"}
+        title={pairingSession ? (isSending ? t(language, "preview.sending") : t(language, "preview.sendToDesktop")) : t(language, "preview.pairDesktopFirst")}
         onPress={handleSend}
         disabled={isSending || !pairingSession || !listingDraft}
       />

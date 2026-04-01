@@ -2,15 +2,15 @@
   const { registerMarketplaceAdapter, helpers } = globalThis.MultiPostContent;
 
   const VEHICLE_CATEGORY_CONFIG = {
-    cars: { topmenu: "1", priceField: "f12", descriptionField: "f21" },
-    buses: { topmenu: "3", priceField: "f15", descriptionField: "f24" },
-    trucks: { topmenu: "4", priceField: "f15", descriptionField: "f24" },
-    motorcycles: { topmenu: "5", priceField: "f15", descriptionField: "f24" },
-    forklifts: { topmenu: "8", priceField: "f11", descriptionField: "f20" },
-    boats: { topmenu: "10", priceField: "f16", descriptionField: "f24" },
-    trailers: { topmenu: "11", priceField: "f10", descriptionField: "f18" },
-    bicycles: { topmenu: "12", priceField: "f12", descriptionField: "f17" },
-    parts: { topmenu: "1", rub: "5", titleField: "f24", priceField: "f12", descriptionField: "f17" }
+    cars: { topmenu: "1", priceField: "f12", descriptionField: "f21", cityField: "f19" },
+    buses: { topmenu: "3", priceField: "f15", descriptionField: "f24", cityField: "f22" },
+    trucks: { topmenu: "4", priceField: "f15", descriptionField: "f24", cityField: "f22" },
+    motorcycles: { topmenu: "5", priceField: "f15", descriptionField: "f24", cityField: "f22" },
+    forklifts: { topmenu: "8", priceField: "f11", descriptionField: "f20", cityField: "f18" },
+    boats: { topmenu: "10", priceField: "f16", descriptionField: "f24", cityField: "f22" },
+    trailers: { topmenu: "11", priceField: "f10", descriptionField: "f18", cityField: "f16" },
+    bicycles: { topmenu: "12", priceField: "f12", descriptionField: "f17", cityField: "f15" },
+    parts: { topmenu: "1", rub: "5", titleField: "f24", priceField: "f12", descriptionField: "f17", cityField: "f15" }
   };
 
   const SELECTORS = {
@@ -84,6 +84,23 @@
     element.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function getNormalizedText(value) {
+    return String(value || "").trim();
+  }
+
+  function getResolvedVehicleFieldValue(fieldName, fieldValue, listing, categoryConfig) {
+    const normalizedFieldValue = getNormalizedText(fieldValue);
+    if (normalizedFieldValue) {
+      return normalizedFieldValue;
+    }
+
+    if (fieldName === categoryConfig.cityField) {
+      return getNormalizedText(listing.location);
+    }
+
+    return "";
+  }
+
   async function fillVehicleCategory(listing, categoryKey) {
     const mobileBgData = listing.marketplaceData?.mobileBg;
     const categoryConfig = VEHICLE_CATEGORY_CONFIG[categoryKey];
@@ -117,7 +134,8 @@
     }
 
     Object.entries(fields).forEach(([fieldName, fieldValue]) => {
-      if (!fieldValue || fieldName === "f5") {
+      const resolvedValue = getResolvedVehicleFieldValue(fieldName, fieldValue, listing, categoryConfig);
+      if (!resolvedValue || fieldName === "f5") {
         return;
       }
 
@@ -127,11 +145,11 @@
       }
 
       if (element.tagName === "SELECT") {
-        helpers.setSelectValue(element, fieldValue);
+        helpers.setSelectValue(element, resolvedValue);
         return;
       }
 
-      helpers.setFieldValue(element, fieldValue);
+      helpers.setFieldValue(element, resolvedValue);
     });
 
     helpers.setFieldValue(
@@ -189,7 +207,10 @@
     helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.centerHole), tiresRimsData.centerHole);
     helpers.setFieldValue(helpers.queryFirst(SELECTORS.tiresRims.quantity), tiresRimsData.quantity || "");
     helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.region), tiresRimsData.region);
-    helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.city), tiresRimsData.city);
+    helpers.setSelectValue(
+      helpers.queryFirst(SELECTORS.tiresRims.city),
+      getNormalizedText(tiresRimsData.city) || getNormalizedText(listing.location)
+    );
     helpers.setSelectValue(helpers.queryFirst(SELECTORS.tiresRims.rimType), tiresRimsData.rimType);
   }
 

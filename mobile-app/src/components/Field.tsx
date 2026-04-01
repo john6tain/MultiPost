@@ -7,7 +7,7 @@ type FieldProps = {
   value: string;
   onChangeText: (value: string) => void;
   multiline?: boolean;
-  keyboardType?: "default" | "numeric";
+  keyboardType?: "default" | "numeric" | "phone-pad";
   placeholder?: string;
 };
 

@@ -10,6 +10,7 @@ export const emptyListingDraft: ListingDraft = {
   price: "",
   category: "",
   location: "",
+  phone: "",
   images: [],
   postingTargets: ["olx"],
   marketplaceData: {}

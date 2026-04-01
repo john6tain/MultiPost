@@ -56,6 +56,7 @@ import {
   PostingTargetId
 } from "../types/listing";
 import { theme } from "../theme";
+import { t } from "../i18n";
 
 type Props = NativeStackScreenProps<RootStackParamList, "CreateListing">;
 
@@ -64,10 +65,28 @@ const POSTING_TARGETS: Array<{ id: PostingTargetId; label: string }> = [
   { id: "mobile-bg", label: "mobile.bg" },
   { id: "bazar-bg", label: "bazar.bg" }
 ];
-const SHARED_LISTING_FIELD_NAMES = new Set(["title", "description", "price", "salary_or_price", "location"]);
+const SHARED_LISTING_FIELD_NAMES = new Set([
+  "title",
+  "description",
+  "price",
+  "salary_or_price",
+  "location",
+  "price_type",
+  "currency",
+  "province_city_location",
+  "populated_location",
+  "province_id",
+  "city_id",
+  "district_id",
+  "exact_coordinates",
+  "lat",
+  "long",
+  "phone",
+  "hide_phone"
+]);
 
 export default function CreateListingScreen({ navigation, route }: Props) {
-  const { listingDrafts, saveListingDraft, deleteListingDraft } = useAppState();
+  const { language, listingDrafts, saveListingDraft, deleteListingDraft } = useAppState();
   const isEditMode = route.params?.mode === "edit";
   const editingListingId = route.params?.listingId;
   const editingListing = isEditMode ? listingDrafts.find((item) => item.id === editingListingId) : undefined;
@@ -305,7 +324,10 @@ export default function CreateListingScreen({ navigation, route }: Props) {
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      Alert.alert("Permission required", fromCamera ? "Camera access is required." : "Photo library access is required.");
+      Alert.alert(
+        t(language, "create.permissionRequired"),
+        fromCamera ? t(language, "create.cameraRequired") : t(language, "create.photoLibraryRequired")
+      );
       return;
     }
 
@@ -332,12 +354,12 @@ export default function CreateListingScreen({ navigation, route }: Props) {
 
   async function handleSave() {
     if (!draft.title.trim() || !draft.description.trim() || !draft.price.trim()) {
-      Alert.alert("Missing fields", "Title, description, and price are required.");
+      Alert.alert(t(language, "create.missingFieldsTitle"), t(language, "create.missingFieldsMessage"));
       return;
     }
 
     if (!draft.postingTargets.length) {
-      Alert.alert("Missing targets", "Select at least one posting target.");
+      Alert.alert(t(language, "create.missingTargetsTitle"), t(language, "create.missingTargetsMessage"));
       return;
     }
 
@@ -352,18 +374,18 @@ export default function CreateListingScreen({ navigation, route }: Props) {
   }
 
   function handleDeleteListing() {
-    Alert.alert("Delete listing", "Delete the saved draft listing?", [
+    Alert.alert(t(language, "create.deleteListingTitle"), t(language, "create.deleteListingMessage"), [
       {
-        text: "Cancel",
+        text: t(language, "create.cancel"),
         style: "cancel"
       },
       {
-        text: "Delete",
+        text: t(language, "create.delete"),
         style: "destructive",
         onPress: async () => {
           try {
             if (!editingListing?.id) {
-              Alert.alert("Error", "No listing selected for delete.");
+              Alert.alert(t(language, "create.error"), t(language, "create.noListingSelectedDelete"));
               return;
             }
 
@@ -371,7 +393,7 @@ export default function CreateListingScreen({ navigation, route }: Props) {
             setDraft(emptyListingDraft);
             navigation.navigate("Home");
           } catch {
-            Alert.alert("Error", "Could not delete the saved listing.");
+            Alert.alert(t(language, "create.error"), t(language, "create.couldNotDelete"));
           }
         }
       }
@@ -381,8 +403,8 @@ export default function CreateListingScreen({ navigation, route }: Props) {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.targetsSection}>
-        <Text style={styles.sectionTitle}>Posting Targets</Text>
-        <Text style={styles.sectionHint}>Choose where this listing is allowed to be posted. Future sites can be added here.</Text>
+        <Text style={styles.sectionTitle}>{t(language, "create.postingTargetsTitle")}</Text>
+        <Text style={styles.sectionHint}>{t(language, "create.postingTargetsHint")}</Text>
         <View style={styles.targetRow}>
           {POSTING_TARGETS.map((target) => {
             const isSelected = draft.postingTargets.includes(target.id);
@@ -401,26 +423,27 @@ export default function CreateListingScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.marketplaceSection}>
-        <Text style={styles.sectionTitle}>Listing Details</Text>
-        <Text style={styles.sectionHint}>Shared listing fields used across marketplaces.</Text>
-        <Field label="Title" value={draft.title} onChangeText={(value) => updateField("title", value)} placeholder="Vehicle listing" />
-        <Field label="Description" value={draft.description} onChangeText={(value) => updateField("description", value)} multiline placeholder="Describe the item..." />
-        <Field label="Price" value={draft.price} onChangeText={(value) => updateField("price", value)} keyboardType="numeric" placeholder="330" />
-        <Field label="Category" value={draft.category} onChangeText={(value) => updateField("category", value)} placeholder="Cars" />
-        <Field label="Location" value={draft.location} onChangeText={(value) => updateField("location", value)} placeholder="Sofia" />
+        <Text style={styles.sectionTitle}>{t(language, "create.listingDetailsTitle")}</Text>
+        <Text style={styles.sectionHint}>{t(language, "create.listingDetailsHint")}</Text>
+        <Field label={t(language, "create.title")} value={draft.title} onChangeText={(value) => updateField("title", value)} placeholder={t(language, "create.vehicleListing")} />
+        <Field label={t(language, "create.description")} value={draft.description} onChangeText={(value) => updateField("description", value)} multiline placeholder={t(language, "create.describeItem")} />
+        <Field label={t(language, "create.price")} value={draft.price} onChangeText={(value) => updateField("price", value)} keyboardType="numeric" placeholder={t(language, "create.priceExample")} />
+        <Field label={t(language, "create.category")} value={draft.category} onChangeText={(value) => updateField("category", value)} placeholder={t(language, "create.cars")} />
+        <Field label={t(language, "create.location")} value={draft.location} onChangeText={(value) => updateField("location", value)} placeholder={t(language, "create.sofia")} />
+        <Field label={t(language, "create.phone")} value={draft.phone} onChangeText={(value) => updateField("phone", value)} keyboardType="phone-pad" placeholder={t(language, "create.phoneExample")} />
       </View>
 
       {showMobileBg ? (
         <View style={styles.marketplaceSection}>
-          <Text style={styles.sectionTitle}>mobile.bg</Text>
-          <Text style={styles.sectionHint}>Select the primary category first. The form below uses the real `mobile.bg` field structure for the supported categories.</Text>
+          <Text style={styles.sectionTitle}>{t(language, "create.mobileTitle")}</Text>
+          <Text style={styles.sectionHint}>{t(language, "create.mobileHint")}</Text>
 
           <SelectField
-            label="Основна категория"
+            label={t(language, "create.mobilePrimaryCategory")}
             value={selectedPrimaryCategory ?? ""}
             options={MOBILE_BG_PRIMARY_CATEGORY_OPTIONS}
             onChangeValue={updateMobileBgPrimaryCategory}
-            placeholder="Изберете категория"
+            placeholder={t(language, "create.mobileSelectCategory")}
           />
 
           {selectedSchema ? (
@@ -428,7 +451,9 @@ export default function CreateListingScreen({ navigation, route }: Props) {
               {selectedSchema.fieldGroups.map((group) => (
                 <View key={group.title} style={styles.group}>
                   <Text style={styles.groupTitle}>{group.title}</Text>
-                  {group.fields.map((field) => renderMobileBgField(field, mobileBgFields[field.name] ?? "", updateMobileBgFormField))}
+                  {group.fields.map((field) =>
+                    renderMobileBgField(field, mobileBgFields[field.name] ?? "", updateMobileBgFormField, t(language, "select.default"))
+                  )}
                 </View>
               ))}
 
@@ -460,43 +485,43 @@ export default function CreateListingScreen({ navigation, route }: Props) {
           {selectedPrimaryCategory === "tires-rims" ? (
             <>
               <View style={styles.group}>
-                <Text style={styles.groupTitle}>Sale</Text>
-                <SelectField label="Ad Type (f5)" value={tiresRims.adType ?? ""} options={MOBILE_BG_AD_TYPE_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("adType", value)} placeholder="Select ad type" />
-                <SelectField label="VAT Status (f43)" value={tiresRims.vatStatus ?? ""} options={MOBILE_BG_VAT_STATUS_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("vatStatus", value)} placeholder="Select VAT status" />
-                <SelectField label="Currency (f7)" value={tiresRims.currency ?? ""} options={MOBILE_BG_CURRENCY_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("currency", value)} placeholder="Select currency" />
-                <SelectField label="Condition (f8)" value={tiresRims.condition ?? ""} options={MOBILE_BG_CONDITION_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("condition", value)} placeholder="Select condition" />
+                <Text style={styles.groupTitle}>{t(language, "create.saleGroup")}</Text>
+                <SelectField label="Ad Type (f5)" value={tiresRims.adType ?? ""} options={MOBILE_BG_AD_TYPE_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("adType", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="VAT Status (f43)" value={tiresRims.vatStatus ?? ""} options={MOBILE_BG_VAT_STATUS_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("vatStatus", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Currency (f7)" value={tiresRims.currency ?? ""} options={MOBILE_BG_CURRENCY_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("currency", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Condition (f8)" value={tiresRims.condition ?? ""} options={MOBILE_BG_CONDITION_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("condition", value)} placeholder={t(language, "select.default")} />
                 <Field label="Quantity (f24)" value={tiresRims.quantity ?? ""} onChangeText={(value) => updateMobileBgTiresRimsField("quantity", value)} keyboardType="numeric" placeholder="4" />
               </View>
 
               <View style={styles.group}>
-                <Text style={styles.groupTitle}>Tire Info</Text>
-                <SelectField label="Tire Brand (f12)" value={tiresRims.tireBrand ?? ""} options={MOBILE_BG_TIRE_BRAND_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("tireBrand", value)} placeholder="Select tire brand" />
-                <SelectField label="Width mm (f13)" value={tiresRims.tireWidthMm ?? ""} options={MOBILE_BG_WIDTH_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("tireWidthMm", value)} placeholder="Select width" />
-                <SelectField label="Height (f14)" value={tiresRims.tireHeight ?? ""} options={MOBILE_BG_HEIGHT_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("tireHeight", value)} placeholder="Select height" />
-                <SelectField label="Rim Diameter inch (f15)" value={tiresRims.rimDiameterInch ?? ""} options={MOBILE_BG_RIM_DIAMETER_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimDiameterInch", value)} placeholder="Select diameter" />
-                <SelectField label="Season (f18)" value={tiresRims.season ?? ""} options={MOBILE_BG_SEASON_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("season", value)} placeholder="Select season" />
-                <SelectField label="Speed Index (f20)" value={tiresRims.speedIndex ?? ""} options={MOBILE_BG_SPEED_INDEX_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("speedIndex", value)} placeholder="Select speed index" />
-                <SelectField label="Load Index (f19)" value={tiresRims.loadIndex ?? ""} options={MOBILE_BG_LOAD_INDEX_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("loadIndex", value)} placeholder="Select load index" />
-                <SelectField label="Tread Pattern (f22)" value={tiresRims.treadPattern ?? ""} options={MOBILE_BG_TREAD_PATTERN_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("treadPattern", value)} placeholder="Select tread pattern" />
+                <Text style={styles.groupTitle}>{t(language, "create.tireInfoGroup")}</Text>
+                <SelectField label="Tire Brand (f12)" value={tiresRims.tireBrand ?? ""} options={MOBILE_BG_TIRE_BRAND_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("tireBrand", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Width mm (f13)" value={tiresRims.tireWidthMm ?? ""} options={MOBILE_BG_WIDTH_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("tireWidthMm", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Height (f14)" value={tiresRims.tireHeight ?? ""} options={MOBILE_BG_HEIGHT_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("tireHeight", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Rim Diameter inch (f15)" value={tiresRims.rimDiameterInch ?? ""} options={MOBILE_BG_RIM_DIAMETER_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimDiameterInch", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Season (f18)" value={tiresRims.season ?? ""} options={MOBILE_BG_SEASON_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("season", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Speed Index (f20)" value={tiresRims.speedIndex ?? ""} options={MOBILE_BG_SPEED_INDEX_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("speedIndex", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Load Index (f19)" value={tiresRims.loadIndex ?? ""} options={MOBILE_BG_LOAD_INDEX_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("loadIndex", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Tread Pattern (f22)" value={tiresRims.treadPattern ?? ""} options={MOBILE_BG_TREAD_PATTERN_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("treadPattern", value)} placeholder={t(language, "select.default")} />
               </View>
 
               <View style={styles.group}>
-                <Text style={styles.groupTitle}>Rim Info</Text>
+                <Text style={styles.groupTitle}>{t(language, "create.rimInfoGroup")}</Text>
                 <Field label="Car Make (f9)" value={tiresRims.carMake ?? ""} onChangeText={(value) => updateMobileBgTiresRimsField("carMake", value)} placeholder="Audi" />
                 <Field label="Car Model (f10)" value={tiresRims.carModel ?? ""} onChangeText={(value) => updateMobileBgTiresRimsField("carModel", value)} placeholder="A4" />
                 <Field label="Rim Brand (f11)" value={tiresRims.rimBrand ?? ""} onChangeText={(value) => updateMobileBgTiresRimsField("rimBrand", value)} placeholder="Audi" />
-                <SelectField label="Rim Width inch (f17)" value={tiresRims.rimWidthInch ?? ""} options={MOBILE_BG_RIM_WIDTH_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimWidthInch", value)} placeholder="Select rim width" />
-                <SelectField label="Rim Material (f26)" value={tiresRims.rimMaterial ?? ""} options={MOBILE_BG_RIM_MATERIAL_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimMaterial", value)} placeholder="Select material" />
-                <SelectField label="Offset ET mm (f30)" value={tiresRims.rimOffsetEtMm ?? ""} options={MOBILE_BG_OFFSET_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimOffsetEtMm", value)} placeholder="Select ET range" />
-                <SelectField label="Bolts Count (f27)" value={tiresRims.boltsCount ?? ""} options={MOBILE_BG_BOLTS_COUNT_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("boltsCount", value)} placeholder="Select bolts count" />
-                <SelectField label="Bolt Spacing (f28)" value={tiresRims.boltSpacing ?? ""} options={MOBILE_BG_BOLT_SPACING_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("boltSpacing", value)} placeholder="Select bolt spacing" />
+                <SelectField label="Rim Width inch (f17)" value={tiresRims.rimWidthInch ?? ""} options={MOBILE_BG_RIM_WIDTH_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimWidthInch", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Rim Material (f26)" value={tiresRims.rimMaterial ?? ""} options={MOBILE_BG_RIM_MATERIAL_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimMaterial", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Offset ET mm (f30)" value={tiresRims.rimOffsetEtMm ?? ""} options={MOBILE_BG_OFFSET_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimOffsetEtMm", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Bolts Count (f27)" value={tiresRims.boltsCount ?? ""} options={MOBILE_BG_BOLTS_COUNT_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("boltsCount", value)} placeholder={t(language, "select.default")} />
+                <SelectField label="Bolt Spacing (f28)" value={tiresRims.boltSpacing ?? ""} options={MOBILE_BG_BOLT_SPACING_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("boltSpacing", value)} placeholder={t(language, "select.default")} />
                 <Field label="Center Hole (f31)" value={tiresRims.centerHole ?? ""} onChangeText={(value) => updateMobileBgTiresRimsField("centerHole", value)} placeholder="10.5" />
-                <SelectField label="Rim Type (f29)" value={tiresRims.rimType ?? ""} options={MOBILE_BG_RIM_TYPE_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimType", value)} placeholder="Select rim type" />
+                <SelectField label="Rim Type (f29)" value={tiresRims.rimType ?? ""} options={MOBILE_BG_RIM_TYPE_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("rimType", value)} placeholder={t(language, "select.default")} />
               </View>
 
               <View style={styles.group}>
-                <Text style={styles.groupTitle}>Location</Text>
-                <SelectField label="Region (f33)" value={tiresRims.region ?? ""} options={MOBILE_BG_REGION_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("region", value)} placeholder="Select region" />
+                <Text style={styles.groupTitle}>{t(language, "create.location")}</Text>
+                <SelectField label="Region (f33)" value={tiresRims.region ?? ""} options={MOBILE_BG_REGION_OPTIONS} onChangeValue={(value) => updateMobileBgTiresRimsField("region", value)} placeholder={t(language, "select.default")} />
                 <Field label="City (f34)" value={tiresRims.city ?? ""} onChangeText={(value) => updateMobileBgTiresRimsField("city", value)} placeholder="gr. Sofia" />
               </View>
             </>
@@ -506,41 +531,41 @@ export default function CreateListingScreen({ navigation, route }: Props) {
 
       {showBazarBg ? (
         <View style={styles.marketplaceSection}>
-          <Text style={styles.sectionTitle}>bazar.bg</Text>
-          <Text style={styles.sectionHint}>Shared fields (title, description, price, location) are filled from the main form above. Use this section only for bazar.bg-specific fields.</Text>
+          <Text style={styles.sectionTitle}>{t(language, "create.bazarTitle")}</Text>
+          <Text style={styles.sectionHint}>{t(language, "create.bazarHint")}</Text>
 
           <SelectField
-            label="Top-level category"
+            label={t(language, "create.topLevelCategory")}
             value={bazarBgData?.topLevelCategoryId ?? ""}
             options={BAZAR_BG_TOP_LEVEL_CATEGORY_OPTIONS}
             onChangeValue={updateBazarBgTopLevelCategory}
-            placeholder="Select top-level category"
+            placeholder={t(language, "create.selectTopLevelCategory")}
           />
 
           <SelectField
-            label="Subcategory"
+            label={t(language, "create.subcategory")}
             value={bazarBgData?.subcategoryId ?? ""}
             options={bazarBgSubcategoryOptions}
             onChangeValue={updateBazarBgSubcategory}
-            placeholder={bazarBgSubcategoryOptions.length ? "Select subcategory" : "No subcategories loaded"}
+            placeholder={bazarBgSubcategoryOptions.length ? t(language, "create.selectSubcategory") : t(language, "create.noSubcategoriesLoaded")}
           />
 
           {bazarBgLeafCategoryOptions.length ? (
             <SelectField
-              label="Leaf category"
+              label={t(language, "create.leafCategory")}
               value={bazarBgData?.leafCategoryId ?? ""}
               options={bazarBgLeafCategoryOptions}
               onChangeValue={updateBazarBgLeafCategory}
-              placeholder="Select leaf category"
+              placeholder={t(language, "create.selectLeafCategory")}
             />
           ) : null}
 
           <SelectField
-            label="Schema group"
+            label={t(language, "create.schemaGroup")}
             value={bazarBgData?.schemaKey ?? ""}
             options={BAZAR_BG_SCHEMA_OPTIONS}
             onChangeValue={updateBazarBgSchema}
-            placeholder="Select schema group"
+            placeholder={t(language, "create.selectSchemaGroup")}
           />
 
           {bazarBgSelectedSchema ? (
@@ -548,7 +573,9 @@ export default function CreateListingScreen({ navigation, route }: Props) {
               {bazarBgSpecificFieldGroups.map((group) => (
                 <View key={group.title} style={styles.group}>
                   <Text style={styles.groupTitle}>{group.title}</Text>
-                  {group.fields.map((field) => renderBazarBgField(field, bazarBgFields[field.name] ?? "", updateBazarBgField))}
+                  {group.fields.map((field) =>
+                    renderBazarBgField(field, bazarBgFields[field.name] ?? "", updateBazarBgField, t(language, "select.default"))
+                  )}
                 </View>
               ))}
             </>
@@ -561,15 +588,15 @@ export default function CreateListingScreen({ navigation, route }: Props) {
       {isEditMode ? (
         <View style={styles.actionsRow}>
           <View style={styles.actionHalf}>
-            <PrimaryButton title="Delete Listing" onPress={handleDeleteListing} variant="danger" />
+            <PrimaryButton title={t(language, "create.deleteListing")} onPress={handleDeleteListing} variant="danger" />
           </View>
           <View style={styles.actionHalf}>
-            <PrimaryButton title={isSaving ? "Saving..." : "Save Listing"} onPress={handleSave} disabled={isSaving} />
+            <PrimaryButton title={isSaving ? t(language, "create.saving") : t(language, "create.saveListing")} onPress={handleSave} disabled={isSaving} />
           </View>
         </View>
       ) : (
         <View style={styles.actions}>
-          <PrimaryButton title={isSaving ? "Saving..." : "Save Listing"} onPress={handleSave} disabled={isSaving} />
+          <PrimaryButton title={isSaving ? t(language, "create.saving") : t(language, "create.saveListing")} onPress={handleSave} disabled={isSaving} />
         </View>
       )}
     </ScrollView>
@@ -579,7 +606,8 @@ export default function CreateListingScreen({ navigation, route }: Props) {
 function renderBazarBgField(
   field: BazarBgFieldDefinition,
   value: string,
-  onChange: (name: string, value: string) => void
+  onChange: (name: string, value: string) => void,
+  selectPlaceholder: string
 ) {
   if (field.type === "select" && field.options) {
     return (
@@ -589,7 +617,7 @@ function renderBazarBgField(
         value={value}
         options={field.options}
         onChangeValue={(nextValue) => onChange(field.name, nextValue)}
-        placeholder={field.placeholder ?? "Select"}
+        placeholder={field.placeholder ?? selectPlaceholder}
       />
     );
   }
@@ -610,7 +638,8 @@ function renderBazarBgField(
 function renderMobileBgField(
   field: MobileBgFieldDefinition,
   value: string,
-  onChange: (name: string, value: string) => void
+  onChange: (name: string, value: string) => void,
+  selectPlaceholder: string
 ) {
   if (field.type === "select" && field.options) {
     return (
@@ -620,7 +649,7 @@ function renderMobileBgField(
         value={value}
         options={field.options}
         onChangeValue={(nextValue) => onChange(field.name, nextValue)}
-        placeholder={field.placeholder ?? "Изберете"}
+        placeholder={field.placeholder ?? selectPlaceholder}
       />
     );
   }
@@ -748,3 +777,4 @@ function toListingDraft(listing: { id: string; updatedAt: number } & ListingDraf
   const { id: _id, updatedAt: _updatedAt, ...draft } = listing;
   return draft;
 }
+
