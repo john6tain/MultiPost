@@ -4,7 +4,7 @@ export type ListingImage = {
   mimeType?: string | null;
 };
 
-export type PostingTargetId = "olx" | "mobile-bg" | "bazar-bg";
+export type PostingTargetId = "olx" | "mobile-bg" | "bazar-bg" | "facebookmarketplace" | "facebook-marketplace";
 
 export type BazarBgSchemaKey =
   | "generic_goods"
@@ -69,6 +69,9 @@ export type MarketplaceData = {
     leafCategory?: string;
     leafCategoryId?: string;
     fields?: Record<string, string>;
+  };
+  facebookMarketplace?: {
+    category?: string;
   };
 };
 

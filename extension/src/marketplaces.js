@@ -7,11 +7,12 @@ export const MARKETPLACES = [
     supportsAutofill: true
   },
   {
-    id: "facebook-marketplace",
-    label: "Facebook Marketplace",
+    id: "facebookmarketplace",
+    label: "Marketplace",
     origin: "https://www.facebook.com",
     pathPrefix: "/marketplace/",
-    supportsAutofill: false
+    postingTargetIds: ["facebookmarketplace", "facebook-marketplace"],
+    supportsAutofill: true
   },
   {
     id: "mobile-bg",
@@ -24,6 +25,11 @@ export const MARKETPLACES = [
     id: "bazar-bg",
     label: "bazar.bg",
     origin: "https://bazar.bg",
+    alternativeOrigins: [
+      "https://www.bazar.bg",
+      "http://bazar.bg",
+      "http://www.bazar.bg"
+    ],
     pathPrefix: "/",
     supportsAutofill: true
   }
@@ -38,7 +44,12 @@ export function findMarketplaceByUrl(rawUrl) {
     const url = new URL(rawUrl);
 
     return MARKETPLACES.find((marketplace) => {
-      return url.origin === marketplace.origin && url.pathname.startsWith(marketplace.pathPrefix);
+      const allowedOrigins = [
+        marketplace.origin,
+        ...(Array.isArray(marketplace.alternativeOrigins) ? marketplace.alternativeOrigins : [])
+      ];
+
+      return allowedOrigins.includes(url.origin) && url.pathname.startsWith(marketplace.pathPrefix);
     }) ?? null;
   } catch {
     return null;

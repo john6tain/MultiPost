@@ -1,17 +1,19 @@
 (function registerBazarBgMarketplaceAdapter() {
   const { registerMarketplaceAdapter, helpers } = globalThis.MultiPostContent;
+  const FAST_MODE = true;
 
   const CREATE_PATH_PREFIX = "/ads/save";
   const LOGIN_PATH_PREFIX = "/user/login";
-  const DEFAULT_TIMEOUT_MS = 8000;
-  const DEPENDENCY_TIMEOUT_MS = 12000;
-  const POLL_INTERVAL_MS = 120;
-  const IMAGE_UPLOAD_TIMEOUT_MS = 20000;
+  const DEFAULT_TIMEOUT_MS = FAST_MODE ? 3000 : 8000;
+  const DEPENDENCY_TIMEOUT_MS = FAST_MODE ? 4000 : 12000;
+  const POLL_INTERVAL_MS = FAST_MODE ? 80 : 120;
+  const IMAGE_UPLOAD_TIMEOUT_MS = FAST_MODE ? 4000 : 20000;
 
   const SELECTORS = {
-    form: 'form[action="/ads/save"]',
+    form: 'form#saveAdForm, form[action="/ads/save"], form[action*="/ads/save"]',
     title: '#title, input[name="title"]',
     description: "#descr, textarea[name=\"description\"]",
+    descriptionIframe: "#redactorIframe",
     price: 'input[name="price"]',
     currency: 'select[name="currency"]',
     phone: '#tel, input[name="phone"]',
@@ -132,6 +134,40 @@
     return false;
   }
 
+  function setBazarDescriptionValue(value) {
+    const normalized = normalizeValue(value);
+    if (!normalized) {
+      return false;
+    }
+
+    let filled = false;
+
+    const textarea = document.querySelector(SELECTORS.description);
+    if (textarea instanceof HTMLTextAreaElement) {
+      helpers.setFieldValue(textarea, normalized);
+      filled = true;
+    }
+
+    const iframe = document.querySelector(SELECTORS.descriptionIframe);
+    if (iframe instanceof HTMLIFrameElement) {
+      try {
+        const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+        if (iframeDoc?.body) {
+          iframeDoc.body.focus();
+          iframeDoc.body.textContent = normalized;
+          iframeDoc.body.dispatchEvent(new Event("input", { bubbles: true }));
+          iframeDoc.body.dispatchEvent(new Event("keyup", { bubbles: true }));
+          iframeDoc.body.dispatchEvent(new Event("blur", { bubbles: true }));
+          filled = true;
+        }
+      } catch {
+        // Ignore iframe access issues and keep textarea value as fallback.
+      }
+    }
+
+    return filled;
+  }
+
   function setCheckboxValue(element, checked) {
     if (!(element instanceof HTMLInputElement) || element.type !== "checkbox") {
       return false;
@@ -209,6 +245,10 @@
   }
 
   async function waitForSelectOptions(selectElement, timeoutMs = DEPENDENCY_TIMEOUT_MS) {
+    if (FAST_MODE) {
+      return;
+    }
+
     if (!(selectElement instanceof HTMLSelectElement)) {
       return;
     }
@@ -227,7 +267,7 @@
     const provinceValue = getFieldValue(listing, "province_city_location");
     if (provinceSelect instanceof HTMLSelectElement && provinceValue) {
       const didSetProvince = setSelectWithFallback(provinceSelect, provinceValue);
-      if (didSetProvince && citySelect instanceof HTMLSelectElement) {
+      if (!FAST_MODE && didSetProvince && citySelect instanceof HTMLSelectElement) {
         await waitForSelectOptions(citySelect).catch(() => undefined);
       }
     }
@@ -248,6 +288,10 @@
   async function openRubChooserPopup() {
     const chooser = await waitForElement(SELECTORS.rubChooser);
     const popup = document.querySelector(SELECTORS.rubChooserPopup);
+
+    if (!popup) {
+      return;
+    }
 
     if (!isVisible(popup)) {
       chooser.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -292,13 +336,52 @@
       return;
     }
 
-    await openRubChooserPopup();
-    await clickCategoryNode("#colMain", topLevelId, "top-level");
-    if (subcategoryId) {
-      await clickCategoryNode("#colRub", subcategoryId, "subcategory");
+    if (FAST_MODE) {
+      const hiddenCategoryFast = document.querySelector(SELECTORS.categoryId);
+      if (hiddenCategoryFast instanceof HTMLInputElement) {
+        hiddenCategoryFast.value = targetCategoryId;
+        dispatchChange(hiddenCategoryFast);
+      }
+
+      const rubChooserSelectFast = document.querySelector(SELECTORS.rubChooser);
+      if (rubChooserSelectFast instanceof HTMLSelectElement) {
+        setSelectWithFallback(rubChooserSelectFast, targetCategoryId);
+      }
+
+      return;
     }
-    if (leafId) {
-      await clickCategoryNode("#colSub", leafId, "leaf");
+
+    const preselectedCategory = document.querySelector(SELECTORS.categoryId);
+    if (
+      preselectedCategory instanceof HTMLInputElement
+      && normalizeValue(preselectedCategory.value) === targetCategoryId
+    ) {
+      return;
+    }
+
+    const hasPopupChooser = Boolean(document.querySelector(SELECTORS.rubChooserPopup));
+
+    if (hasPopupChooser) {
+      try {
+        await openRubChooserPopup();
+        await clickCategoryNode("#colMain", topLevelId, "top-level");
+        if (subcategoryId) {
+          await clickCategoryNode("#colRub", subcategoryId, "subcategory");
+        }
+        if (leafId) {
+          await clickCategoryNode("#colSub", leafId, "leaf");
+        }
+      } catch {
+        const rubChooserSelect = document.querySelector(SELECTORS.rubChooser);
+        if (rubChooserSelect instanceof HTMLSelectElement) {
+          setSelectWithFallback(rubChooserSelect, targetCategoryId);
+        }
+      }
+    } else {
+      const rubChooserSelect = document.querySelector(SELECTORS.rubChooser);
+      if (rubChooserSelect instanceof HTMLSelectElement) {
+        setSelectWithFallback(rubChooserSelect, targetCategoryId);
+      }
     }
 
     const hiddenCategory = await waitForElement(SELECTORS.categoryId);
@@ -348,6 +431,10 @@
       return { attached: false, confirmed: false };
     }
 
+    if (FAST_MODE) {
+      return { attached: true, confirmed: true };
+    }
+
     const confirmed = await waitForPicsPopulation(previousValue);
     return { attached: true, confirmed };
   }
@@ -373,9 +460,17 @@
   }
 
   async function fillMainFields(listing) {
-    setFieldValue(await waitForElement(SELECTORS.title), getFieldValue(listing, "title"));
-    setFieldValue(await waitForElement(SELECTORS.description), getFieldValue(listing, "description"));
-    setFieldValue(await waitForElement(SELECTORS.price), getFieldValue(listing, "price"));
+    const titleElement = FAST_MODE
+      ? document.querySelector(SELECTORS.title)
+      : await waitForElement(SELECTORS.title);
+    setFieldValue(titleElement, getFieldValue(listing, "title"));
+
+    setBazarDescriptionValue(getFieldValue(listing, "description"));
+
+    const priceElement = FAST_MODE
+      ? document.querySelector(SELECTORS.price)
+      : await waitForElement(SELECTORS.price);
+    setFieldValue(priceElement, getFieldValue(listing, "price"));
     setFieldValue(document.querySelector(SELECTORS.currency), getFieldValue(listing, "currency"));
     setRadioValue(getFieldValue(listing, "price_type"));
     setFieldValue(document.querySelector(SELECTORS.phone), getFieldValue(listing, "phone"));
@@ -413,7 +508,7 @@
     id: "bazar-bg",
     label: "bazar.bg",
     matches(url) {
-      return url.origin === "https://bazar.bg";
+      return url.hostname === "bazar.bg" || url.hostname === "www.bazar.bg";
     },
     async fill(listing, context = {}) {
       const { imagesOnly = false } = context;
@@ -426,7 +521,9 @@
         };
       }
 
-      if (!window.location.pathname.startsWith(CREATE_PATH_PREFIX)) {
+      const hasCreateForm = Boolean(document.querySelector(SELECTORS.form));
+
+      if (!window.location.pathname.startsWith(CREATE_PATH_PREFIX) && !hasCreateForm) {
         return {
           ok: false,
           consumedImages: false,
@@ -474,8 +571,10 @@
       await fillMainFields(listing);
       await fillLocationFlow(listing);
 
-      const schemaKey = listing.marketplaceData?.bazarBg?.schemaKey || "generic_goods";
-      const missingRequired = await fillSchemaSpecificFields(listing, schemaKey);
+      const schemaKey = listing.marketplaceData?.bazarBg?.schemaKey;
+      const missingRequired = schemaKey
+        ? await fillSchemaSpecificFields(listing, schemaKey)
+        : [];
 
       const imagesResult = await attachImagesAndConfirm(listing);
       if (!imagesResult.attached) {
@@ -504,8 +603,7 @@
 
       return {
         ok: true,
-        consumedImages: true,
-        message: "Filled bazar.bg form and confirmed image upload."
+        consumedImages: true
       };
     }
   });

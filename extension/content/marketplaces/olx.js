@@ -6,8 +6,36 @@
     title: ['input[name="title"]'],
     description: ['textarea[name="description"]'],
     price: ['input[name="parameters.price.price"]'],
-    imageInput: ['input[data-testid="attach-photos-input"]']
+    phone: [
+      'input[name="phone"]',
+      'input[name*="phone"]',
+      'input[id*="phone"]',
+      'input[type="tel"]',
+      'input[aria-label*="Phone"]',
+      'input[aria-label*="Тел"]',
+      'input[placeholder*="Phone"]',
+      'input[placeholder*="Тел"]'
+    ],
+    imageInput: [
+      'input[data-testid="attach-photos-input"]',
+      'input[type="file"][accept*="image"]',
+      'input[type="file"][multiple]'
+    ]
   };
+
+  function setPhoneFieldValueIfValid(value) {
+    const phoneElement = helpers.queryFirst(SELECTORS.phone);
+    if (!(phoneElement instanceof HTMLInputElement)) {
+      return false;
+    }
+
+    const inputType = String(phoneElement.type || "").toLowerCase();
+    if (inputType === "file" || inputType === "hidden" || phoneElement.disabled || phoneElement.readOnly) {
+      return false;
+    }
+
+    return helpers.setFieldValue(phoneElement, value || "");
+  }
 
   registerMarketplaceAdapter({
     id: "olx",
@@ -35,6 +63,7 @@
         helpers.queryFirst(SELECTORS.price),
         listing.price != null ? String(listing.price) : ""
       );
+      setPhoneFieldValueIfValid(listing.phone || "");
 
       const imagesAttached = await helpers.attachListingImages(
         SELECTORS.imageInput,

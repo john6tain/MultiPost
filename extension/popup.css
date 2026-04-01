@@ -58,6 +58,9 @@ h1 {
 .error {
   color: #dc2626;
 }
+.error.success {
+  color: #16a34a;
+}
 
 .qr-wrapper {
   display: flex;

@@ -1,6 +1,5 @@
 import {
   createPairingSession,
-  deleteUploadedImages,
   getActiveListing,
   getPairingStatus
 } from "./src/api.js";
@@ -46,10 +45,30 @@ const state = {
   latestListing: null
 };
 const TAB_MESSAGE_TIMEOUT_MS = 20000;
+const CONTENT_SCRIPT_FILES = [
+  "content/common.js",
+  "content/marketplaces/olx.js",
+  "content/marketplaces/mobileBg.js",
+  "content/marketplaces/bazarBg.js",
+  "content/marketplaces/facebookMarketplace.js",
+  "content.js"
+];
 
 function getFillButtonLabel(rawUrl) {
   const marketplace = findMarketplaceByUrl(rawUrl);
   return marketplace?.supportsAutofill ? `Fill ${marketplace.label}` : "Fill Form";
+}
+
+function getMarketplaceTargetIds(marketplace) {
+  if (!marketplace) {
+    return [];
+  }
+
+  const targetIds = Array.isArray(marketplace.postingTargetIds)
+    ? marketplace.postingTargetIds
+    : [marketplace.id];
+
+  return targetIds.filter((value) => typeof value === "string" && value);
 }
 
 function canFillMarketplace(listing, marketplace) {
@@ -61,7 +80,8 @@ function canFillMarketplace(listing, marketplace) {
     return true;
   }
 
-  return listing.postingTargets.includes(marketplace.id);
+  const targetIds = getMarketplaceTargetIds(marketplace);
+  return targetIds.some((targetId) => listing.postingTargets.includes(targetId));
 }
 
 async function getActiveTab() {
@@ -89,6 +109,31 @@ async function sendTabMessageWithTimeout(tabId, payload, timeoutMessage) {
         reject(error);
       });
   });
+}
+
+function isMissingReceiverError(error) {
+  const message = String(error?.message || error || "");
+  return message.includes("Receiving end does not exist");
+}
+
+async function injectContentScripts(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: CONTENT_SCRIPT_FILES
+  });
+}
+
+async function sendTabMessageWithInjectionRetry(tabId, payload, timeoutMessage) {
+  try {
+    return await sendTabMessageWithTimeout(tabId, payload, timeoutMessage);
+  } catch (error) {
+    if (!isMissingReceiverError(error)) {
+      throw error;
+    }
+
+    await injectContentScripts(tabId);
+    return sendTabMessageWithTimeout(tabId, payload, timeoutMessage);
+  }
 }
 
 async function syncFillButtonState() {
@@ -119,9 +164,14 @@ function setHidden(element, hidden) {
   element.classList.toggle("hidden", hidden);
 }
 
-function setError(message = "") {
+function setError(message = "", type = "error") {
   elements.errorText.textContent = message;
+  elements.errorText.classList.toggle("success", type === "success");
   setHidden(elements.errorText, !message);
+}
+
+function setSuccess(message = "") {
+  setError(message, "success");
 }
 
 function renderListing(listing) {
@@ -402,7 +452,7 @@ async function handleFillListingClick() {
   }
 
   try {
-    const response = await sendTabMessageWithTimeout(tab.id, {
+    const response = await sendTabMessageWithInjectionRetry(tab.id, {
       type: "fillListing",
       listing: state.latestListing
     }, "Filling timed out. Refresh the page and try again.");
@@ -412,16 +462,10 @@ async function handleFillListingClick() {
       return;
     }
 
-    if (response?.consumedImages && Array.isArray(state.latestListing.images) && state.latestListing.images.length) {
-      await deleteUploadedImages(state.latestListing.images);
-      state.latestListing = {
-        ...state.latestListing,
-        images: []
-      };
-      elements.listingImages.textContent = "Images: 0";
-    }
+    // Keep uploaded backend images available across multiple marketplace fills.
+    // They are cleared when the user sends a new listing payload.
 
-    setError(response?.message || "");
+    setSuccess(response?.message || `Filled ${marketplace.label} successfully.`);
   } catch (error) {
     setError(error?.message || `Open a ${marketplace.label} listing form page before using Fill Form.`);
   }
@@ -464,7 +508,7 @@ async function handleFillImagesClick() {
   elements.fillImagesButton.textContent = "Uploading...";
 
   try {
-    const response = await sendTabMessageWithTimeout(tab.id, {
+    const response = await sendTabMessageWithInjectionRetry(tab.id, {
       type: "fillListingImages",
       listing: state.latestListing
     }, "Image upload timed out. Check backend connection and retry.");
@@ -474,16 +518,10 @@ async function handleFillImagesClick() {
       return;
     }
 
-    if (response?.consumedImages) {
-      await deleteUploadedImages(state.latestListing.images);
-      state.latestListing = {
-        ...state.latestListing,
-        images: []
-      };
-      elements.listingImages.textContent = "Images: 0";
-    }
+    // Keep uploaded backend images available across multiple marketplace fills.
+    // They are cleared when the user sends a new listing payload.
 
-    setError(response?.message || "");
+    setSuccess(response?.message || "Uploaded images successfully.");
   } catch (error) {
     setError(error?.message || "Open the mobile.bg photos step before using Upload Images.");
   } finally {

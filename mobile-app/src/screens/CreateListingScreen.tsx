@@ -63,7 +63,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "CreateListing">;
 const POSTING_TARGETS: Array<{ id: PostingTargetId; label: string }> = [
   { id: "olx", label: "OLX" },
   { id: "mobile-bg", label: "mobile.bg" },
-  { id: "bazar-bg", label: "bazar.bg" }
+  { id: "bazar-bg", label: "bazar.bg" },
+  { id: "facebookmarketplace", label: "Facebook Marketplace" }
 ];
 const SHARED_LISTING_FIELD_NAMES = new Set([
   "title",
@@ -214,6 +215,19 @@ export default function CreateListingScreen({ navigation, route }: Props) {
     }));
   }
 
+  function updateFacebookMarketplaceCategory(value: string) {
+    setDraft((current) => ({
+      ...current,
+      marketplaceData: {
+        ...current.marketplaceData,
+        facebookMarketplace: {
+          ...current.marketplaceData?.facebookMarketplace,
+          category: value
+        }
+      }
+    }));
+  }
+
   function toggleMobileBgFeature(name: string) {
     setDraft((current) => {
       const currentFeatures = current.marketplaceData?.mobileBg?.features ?? [];
@@ -272,6 +286,7 @@ export default function CreateListingScreen({ navigation, route }: Props) {
   const mobileBgFeatures = mobileBgData?.features ?? [];
   const showMobileBg = draft.postingTargets.includes("mobile-bg");
   const showBazarBg = draft.postingTargets.includes("bazar-bg");
+  const showFacebookMarketplace = draft.postingTargets.includes("facebookmarketplace");
   const selectedPrimaryCategory = mobileBgData?.primaryCategoryKey;
   const selectedSchema = useMemo<MobileBgCategorySchema | null>(() => {
     if (!selectedPrimaryCategory || selectedPrimaryCategory === "tires-rims") {
@@ -580,6 +595,19 @@ export default function CreateListingScreen({ navigation, route }: Props) {
               ))}
             </>
           ) : null}
+        </View>
+      ) : null}
+
+      {showFacebookMarketplace ? (
+        <View style={styles.marketplaceSection}>
+          <Text style={styles.sectionTitle}>Facebook Marketplace</Text>
+          <Text style={styles.sectionHint}>Set Facebook-specific category used for autofill.</Text>
+          <Field
+            label="Category"
+            value={draft.marketplaceData?.facebookMarketplace?.category ?? ""}
+            onChangeText={updateFacebookMarketplaceCategory}
+            placeholder="Vehicles"
+          />
         </View>
       ) : null}
 

@@ -59,7 +59,7 @@ Multi-Post lets a user:
 - Popup handles pairing and listing preview.
 - Background script handles supported-site badge state.
 - Content script routes through marketplace adapters.
-- Implemented adapters: `OLX`, `mobile.bg`.
+- Implemented adapters: `OLX`, `mobile.bg`, `bazar.bg`, `facebookmarketplace`.
 - `mobile.bg` currently includes category-aware support for `Гуми и джанти` field names.
 
 ## Important Files
@@ -78,6 +78,8 @@ Multi-Post lets a user:
 - [src/marketplaces.js](C:\Users\John\Documents\js\MultiPost\extension\src\marketplaces.js)
 - [content/marketplaces/olx.js](C:\Users\John\Documents\js\MultiPost\extension\content\marketplaces\olx.js)
 - [content/marketplaces/mobileBg.js](C:\Users\John\Documents\js\MultiPost\extension\content\marketplaces\mobileBg.js)
+- [content/marketplaces/bazarBg.js](C:\Users\John\Documents\js\MultiPost\extension\content\marketplaces\bazarBg.js)
+- [content/marketplaces/facebookMarketplace.js](C:\Users\John\Documents\js\MultiPost\extension\content\marketplaces\facebookMarketplace.js)
 - [src/api.js](C:\Users\John\Documents\js\MultiPost\extension\src\api.js)
 
 ### Mobile App
@@ -103,6 +105,9 @@ Multi-Post lets a user:
 - mobile.bg:
   - adapter supports `Гуми и джанти` form field names like `f5`, `f6`, `f7`, `f8`, `f12`, `f13`, `f14`, `f15`, `f18`, `f19`, `f20`
   - image/title/description selectors may still need live-form refinement on other categories
+- Facebook Marketplace:
+  - create flow path expected: `/marketplace/create/*` (or `/marketplace/you/selling/*`)
+  - current selectors target title/description/price/image fields and may need live-form refinement if Facebook UI changes
 
 ## Current UX Notes
 
@@ -141,8 +146,7 @@ Multi-Post lets a user:
 4. Add image upload retry/wait logic if marketplace upload is slow.
 5. Add backend cleanup job for orphaned uploads.
 6. Persist pairings/listings in a database.
-7. Add Facebook Marketplace form filling.
-8. Add better listing state in extension after successful fill.
+7. Add better listing state in extension after successful fill.
 
 ## Local Start Commands
 
