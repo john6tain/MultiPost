@@ -21,7 +21,21 @@
         <p id="countdownText" class="countdown hidden"></p>
         <div id="qrWrapper" class="qr-wrapper hidden">
           <div id="qrCode"></div>
+          <p id="qrChunkInfo" class="qr-chunk-info hidden"></p>
         </div>
+        <section id="answerSection" class="answer hidden">
+          <p class="answer-title">Step 2: paste mobile answer payload</p>
+          <textarea id="answerInput" class="answer-input" placeholder="Paste JSON answer from mobile app"></textarea>
+          <div class="answer-actions">
+            <button id="scanAnswerButton" class="button secondary">Scan Answer QR</button>
+            <button id="connectButton" class="button secondary">Connect</button>
+          </div>
+          <section id="answerScanner" class="answer-scanner hidden">
+            <video id="answerVideo" class="answer-video" autoplay playsinline muted></video>
+            <p class="answer-hint">Point this camera to mobile answer QR.</p>
+            <button id="stopScanButton" class="button secondary compact">Stop Scan</button>
+          </section>
+        </section>
         <section id="listingSection" class="listing hidden">
           <div class="listing-header">
             <h2 id="listingHeaderTitle" class="listing-title">Latest Listing</h2>
@@ -31,6 +45,7 @@
               <button id="refreshListingButton" class="button secondary compact hidden">Refresh</button>
             </div>
           </div>
+          <p id="relayStatusText" class="relay-status hidden"></p>
           <p id="listingEmptyText" class="listing-empty">No listing received yet.</p>
           <div id="listingContent" class="hidden">
             <p id="listingTitle" class="listing-name"></p>

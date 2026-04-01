@@ -29,8 +29,5 @@ ios/
 .DS_Store
 Thumbs.db
 
-# Backend runtime files
-backend/uploads/
-
 # TypeScript
 *.tsbuildinfo

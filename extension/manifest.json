@@ -9,7 +9,7 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
+    "https://jsonblob.com/*",
     "https://www.olx.bg/*",
     "https://www.mobile.bg/*",
     "https://bazar.bg/*",

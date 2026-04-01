@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { clearStoredListings, createListingId, emptyListingDraft, getStoredListings, saveStoredListings } from "../services/listingService";
+import { getRelaySession } from "../services/relay";
 import { DEFAULT_LANGUAGE, isLanguage, Language } from "../i18n";
 import { ListingDraft, SavedListingDraft } from "../types/listing";
 import { PairingSession } from "../types/pairing";
@@ -56,6 +57,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setIsReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (!pairingSession?.relayUrl) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const relayPayload = await getRelaySession(pairingSession.relayUrl!);
+        if (cancelled) {
+          return;
+        }
+
+        if (relayPayload?.disconnected === true) {
+          setPairingSessionState(null);
+          await AsyncStorage.removeItem(PAIRING_STORAGE_KEY);
+        }
+      } catch {
+        // Best-effort polling.
+      }
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [pairingSession?.pairingToken, pairingSession?.relayUrl]);
 
   async function setLanguage(language: Language) {
     setLanguageState(language);

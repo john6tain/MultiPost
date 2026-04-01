@@ -95,6 +95,8 @@ export type ListingPayload = {
   location: string;
   phone: string;
   images: string[];
+  imageRelayRefs?: string[];
+  imageRelayChunkRefs?: string[][];
   language?: "en" | "bg";
   postingTargets: PostingTargetId[];
   marketplaceData?: MarketplaceData;

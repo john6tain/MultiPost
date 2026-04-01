@@ -1,5 +1,4 @@
 (function initializeContentBridge() {
-  const API_BASE_URL = "http://localhost:3000";
   const IMAGE_FETCH_TIMEOUT_MS = 15000;
 
   function queryFirst(selectors) {
@@ -67,15 +66,15 @@
       return null;
     }
 
-    if (imageUrl.startsWith("file://")) {
-      throw new Error("Images are still local phone files. Resend the listing after restarting the updated backend and mobile app.");
+    if (imageUrl.startsWith("data:")) {
+      return imageUrl;
     }
 
     if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
       return imageUrl;
     }
 
-    return `${API_BASE_URL}${imageUrl}`;
+    throw new Error("Unsupported image URL format. Expected data URI or http(s) URL.");
   }
 
   async function fetchImageAsFile(imageUrl, index) {

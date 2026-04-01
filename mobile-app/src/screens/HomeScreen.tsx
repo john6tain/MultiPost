@@ -4,6 +4,8 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAppState } from "../hooks/useAppState";
 import { t } from "../i18n";
+import { disconnectPeer } from "../services/peerTransfer";
+import { updateRelaySession } from "../services/relay";
 import { RootStackParamList } from "../types/navigation";
 import { theme } from "../theme";
 
@@ -66,6 +68,20 @@ export default function HomeScreen({ navigation }: Props) {
         <PrimaryButton
           title={t(language, "home.disconnect")}
           onPress={async () => {
+            if (pairingSession?.relayUrl) {
+              try {
+                await updateRelaySession(pairingSession.relayUrl, {
+                  sessionId: pairingSession.pairingToken,
+                  disconnected: true,
+                  disconnectedBy: "mobile",
+                  disconnectedAt: Date.now()
+                });
+              } catch {
+                // Best-effort sync only.
+              }
+            }
+
+            disconnectPeer();
             await setPairingSession(null);
             Alert.alert(t(language, "home.disconnectedTitle"), t(language, "home.disconnectedMessage"));
           }}
