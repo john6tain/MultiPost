@@ -27,9 +27,10 @@ export default function ListingPreviewScreen({ navigation, route }: Props) {
     location: listingDraft?.location.trim() ?? "",
     phone: listingDraft?.phone.trim() ?? "",
     images: listingDraft?.images.map((image) => image.uri) ?? [],
+    language,
     postingTargets: listingDraft?.postingTargets ?? [],
     marketplaceData: listingDraft?.marketplaceData ?? {}
-  }), [listingDraft]);
+  }), [language, listingDraft]);
 
   async function handleSend() {
     if (!listingDraft) {

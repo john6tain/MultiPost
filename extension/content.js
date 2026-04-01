@@ -4,9 +4,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   const listing = message.listing;
+  const language = listing?.language === "bg" ? "bg" : "en";
+
+  function t(enText, bgText) {
+    return language === "bg" ? bgText : enText;
+  }
 
   if (!listing) {
-    sendResponse({ ok: false, message: "No listing data available." });
+    sendResponse({ ok: false, message: t("No listing data available.", "Няма налични данни за обява.") });
     return;
   }
 
@@ -15,7 +20,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!adapter) {
     sendResponse({
       ok: false,
-      message: "Open a supported marketplace listing form page before using Fill Form."
+      message: t(
+        "Open a supported marketplace listing form page before using Fill Form.",
+        "Отвори форма за обява в поддържан сайт, преди да използваш „Попълни форма“."
+      )
     });
     return;
   }
@@ -25,11 +33,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const response = await adapter.fill(listing, {
         imagesOnly: message?.type === "fillListingImages"
       });
-      sendResponse(response ?? { ok: false, message: `Could not fill the ${adapter.label} page.` });
+      sendResponse(response ?? {
+        ok: false,
+        message: t(
+          `Could not fill the ${adapter.label} page.`,
+          `Неуспешно попълване на страницата за ${adapter.label}.`
+        )
+      });
     } catch (error) {
       sendResponse({
         ok: false,
-        message: error instanceof Error ? error.message : `Could not fill the ${adapter.label} page.`
+        message: error instanceof Error
+          ? error.message
+          : t(
+            `Could not fill the ${adapter.label} page.`,
+            `Неуспешно попълване на страницата за ${adapter.label}.`
+          )
       });
     }
   })();
